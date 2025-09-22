@@ -1,0 +1,330 @@
+{
+  "examples": [
+    {
+      "rule_id": "RULE-API-001",
+      "priority": "MUST",
+      "area": "API",
+      "title": "RESTful API 설계 원칙",
+      "description": "모든 API 엔드포인트는 RESTful 원칙을 따라야 하며, HTTP 메서드와 URL 구조가 일관되어야 함",
+      "scope": {
+        "file_patterns": ["**/controller/**/*.java", "**/api/**/*.ts"],
+        "package_patterns": ["com.example.api", "src.api"],
+        "annotation_patterns": ["@RestController", "@Controller", "@app.route"]
+      },
+      "validation_conditions": {
+        "http_methods": ["GET", "POST", "PUT", "DELETE", "PATCH"],
+        "code_patterns": [
+          "@GetMapping\\(.*\\)",
+          "@PostMapping\\(.*\\)",
+          "@PutMapping\\(.*\\)",
+          "@DeleteMapping\\(.*\\)"
+        ],
+        "dependency_rules": [
+          {
+            "from": "Controller",
+            "to": "Service",
+            "direction": "allowed"
+          },
+          {
+            "from": "Controller",
+            "to": "Repository",
+            "direction": "forbidden"
+          }
+        ]
+      },
+      "reference_info": {
+        "confluence_url": "https://confluence.kt-atla.com/pages/api-design-guide",
+        "openapi_spec": "openapi_spec_v1",
+        "related_rules": ["RULE-API-002", "RULE-ARCH-001"],
+        "technical_specs": {
+          "openapi_version": "3.0.0",
+          "base_path": "/api/v1"
+        }
+      },
+      "reliability": {
+        "total_score": 95,
+        "extraction_method": "standardized",
+        "extraction_score": 40,
+        "completeness_score": 55,
+        "gate_threshold": 90
+      },
+      "development_info": {
+        "mdc_template": {
+          "title": "RESTful API 설계 규칙",
+          "description": "API 엔드포인트는 RESTful 원칙을 따라야 합니다",
+          "rule_text": "모든 API 엔드포인트는 RESTful 원칙을 따라야 하며, HTTP 메서드와 URL 구조가 일관되어야 합니다",
+          "examples": [
+            {
+              "title": "올바른 GET 엔드포인트",
+              "code": "@GetMapping(\"/users/{id}\")\npublic ResponseEntity<User> getUser(@PathVariable Long id) {\n    // 구현\n}",
+              "description": "리소스 조회는 GET 메서드를 사용하고 URL에 리소스 ID를 포함"
+            },
+            {
+              "title": "올바른 POST 엔드포인트",
+              "code": "@PostMapping(\"/users\")\npublic ResponseEntity<User> createUser(@RequestBody User user) {\n    // 구현\n}",
+              "description": "리소스 생성은 POST 메서드를 사용하고 요청 본문에 데이터를 포함"
+            }
+          ],
+          "anti_examples": [
+            {
+              "title": "잘못된 메서드명",
+              "code": "@GetMapping(\"/getUserData\")\npublic ResponseEntity<User> getUserData(@RequestParam Long id) {\n    // 구현\n}",
+              "description": "URL에 동사(getUserData)를 포함하면 안 됩니다. 리소스명(users)을 사용하세요"
+            }
+          ]
+        },
+        "snippet_template": {
+          "class_template": "@RestController\n@RequestMapping(\"/api/v1\")\npublic class {ClassName} {\n    \n    @Autowired\n    private {ServiceName} {serviceName};\n    \n    // 엔드포인트 메서드들\n}",
+          "method_template": "@{HttpMethod}(\"/{resource}\")\npublic ResponseEntity<{ResponseType}> {methodName}(@PathVariable {ParamType} {paramName}) {\n    {ResponseType} result = {serviceName}.{serviceMethod}({paramName});\n    return ResponseEntity.ok(result);\n}",
+          "annotation_template": "@{HttpMethod}(\"/{resource}\")",
+          "variable_naming": {
+            "pattern": "^[a-z][a-zA-Z0-9]*$",
+            "examples": ["userService", "userController", "getUserById"]
+          }
+        },
+        "realtime_guide": {
+          "violation_message": "API 엔드포인트가 RESTful 원칙을 위반했습니다. HTTP 메서드와 URL 구조를 확인하세요",
+          "suggestion_message": "리소스명을 사용하고 HTTP 메서드를 적절히 선택하세요. 예: GET /users/{id}",
+          "warning_message": "URL에 동사를 포함하지 마세요. 리소스명을 사용하세요",
+          "tip_message": "RESTful API는 리소스 중심으로 설계하고, HTTP 메서드로 동작을 표현합니다"
+        },
+        "violation_detection": {
+          "patterns": [
+            "getUserData|getUserInfo|getUserDetails",
+            "createUser|addUser|insertUser",
+            "updateUser|modifyUser|editUser",
+            "deleteUser|removeUser|destroyUser"
+          ],
+          "severity": "ERROR",
+          "fix_suggestions": [
+            "URL에서 동사를 제거하고 리소스명을 사용하세요",
+            "HTTP 메서드를 적절히 선택하세요 (GET, POST, PUT, DELETE)",
+            "URL 구조를 일관되게 유지하세요"
+          ]
+        }
+      },
+      "ci_info": {
+        "archunit_rule": {
+          "test_name": "api_should_be_restful",
+          "rule_definition": "classes().that().areAnnotatedWith(RestController.class).should().haveSimpleNameEndingWith(\"Controller\")",
+          "imports": [
+            "com.tngtech.archunit.junit.ArchTest",
+            "com.tngtech.archunit.lang.ArchRule",
+            "org.springframework.web.bind.annotation.RestController"
+          ]
+        },
+        "semgrep_rule": {
+          "rule_id": "restful-api-naming",
+          "patterns": [
+            {
+              "pattern": "@GetMapping\\(\"/get.*\"\\)",
+              "message": "URL에 동사를 포함하지 마세요. 리소스명을 사용하세요"
+            },
+            {
+              "pattern": "@PostMapping\\(\"/create.*\"\\)",
+              "message": "URL에 동사를 포함하지 마세요. 리소스명을 사용하세요"
+            }
+          ],
+          "languages": ["java"],
+          "severity": "ERROR"
+        },
+        "openapi_rule": {
+          "rule_name": "restful-api-consistency",
+          "paths": [
+            {
+              "pattern": "/api/v1/**",
+              "rules": {
+                "no_breaking_changes": true,
+                "no_removed_endpoints": true,
+                "no_removed_parameters": true,
+                "no_type_changes": true
+              }
+            }
+          ]
+        },
+        "drift_calculation": {
+          "rule_weight": 1.0,
+          "area_weight": 1.0,
+          "violation_points": {
+            "MUST": 10,
+            "SHOULD": 5,
+            "MUST NOT": 15
+          }
+        },
+        "pr_comment": {
+          "card_title": "🚨 API 설계 위반",
+          "violation_summary": "RESTful 원칙을 위반한 API 엔드포인트가 발견되었습니다",
+          "fix_guidance": "URL에서 동사를 제거하고 리소스명을 사용하세요. HTTP 메서드로 동작을 표현하세요",
+          "code_example": "@GetMapping(\"/users/{id}\")\npublic ResponseEntity<User> getUser(@PathVariable Long id) {\n    // 구현\n}"
+        },
+        "workflow_config": {
+          "enabled_tools": ["archunit", "semgrep", "openapi_diff"],
+          "execution_order": ["archunit", "semgrep", "openapi_diff"],
+          "conditional_execution": {
+            "file_patterns": ["**/controller/**/*.java", "**/api/**/*.ts"],
+            "language_detection": true
+          }
+        }
+      },
+      "metadata": {
+        "created_at": "2024-01-15T10:30:00Z",
+        "updated_at": "2024-01-15T10:30:00Z",
+        "version": "1.0.0",
+        "author": "김개발",
+        "tags": ["api", "restful", "controller", "spring"]
+      }
+    },
+    {
+      "rule_id": "RULE-ARCH-001",
+      "priority": "MUST",
+      "area": "ARCH",
+      "title": "계층 분리 원칙",
+      "description": "Controller는 Service만 의존해야 하며, Service는 Repository만 의존해야 함",
+      "scope": {
+        "file_patterns": ["**/controller/**/*.java", "**/service/**/*.java", "**/repository/**/*.java"],
+        "package_patterns": ["com.example.controller", "com.example.service", "com.example.repository"],
+        "annotation_patterns": ["@Controller", "@Service", "@Repository"]
+      },
+      "validation_conditions": {
+        "dependency_rules": [
+          {
+            "from": "Controller",
+            "to": "Service",
+            "direction": "allowed"
+          },
+          {
+            "from": "Controller",
+            "to": "Repository",
+            "direction": "forbidden"
+          },
+          {
+            "from": "Service",
+            "to": "Repository",
+            "direction": "allowed"
+          },
+          {
+            "from": "Service",
+            "to": "Controller",
+            "direction": "forbidden"
+          }
+        ]
+      },
+      "reference_info": {
+        "confluence_url": "https://confluence.kt-atla.com/pages/architecture-layered-design",
+        "related_rules": ["RULE-API-001", "RULE-DATA-001"],
+        "technical_specs": {
+          "architecture_pattern": "Layered Architecture",
+          "dependency_direction": "Controller → Service → Repository"
+        }
+      },
+      "reliability": {
+        "total_score": 92,
+        "extraction_method": "standardized",
+        "extraction_score": 40,
+        "completeness_score": 52,
+        "gate_threshold": 90
+      },
+      "development_info": {
+        "mdc_template": {
+          "title": "계층 분리 원칙",
+          "description": "Controller는 Service만 의존해야 하며, Service는 Repository만 의존해야 합니다",
+          "rule_text": "계층 간 의존성은 단방향으로만 흘러야 하며, 상위 계층은 하위 계층만 의존해야 합니다",
+          "examples": [
+            {
+              "title": "올바른 Controller",
+              "code": "@RestController\npublic class UserController {\n    @Autowired\n    private UserService userService;\n    \n    @GetMapping(\"/users/{id}\")\n    public ResponseEntity<User> getUser(@PathVariable Long id) {\n        User user = userService.findById(id);\n        return ResponseEntity.ok(user);\n    }\n}",
+              "description": "Controller는 Service만 의존하고 Repository를 직접 호출하지 않음"
+            }
+          ],
+          "anti_examples": [
+            {
+              "title": "잘못된 Controller",
+              "code": "@RestController\npublic class UserController {\n    @Autowired\n    private UserRepository userRepository;\n    \n    @GetMapping(\"/users/{id}\")\n    public ResponseEntity<User> getUser(@PathVariable Long id) {\n        User user = userRepository.findById(id);\n        return ResponseEntity.ok(user);\n    }\n}",
+              "description": "Controller가 Repository를 직접 의존하면 계층 분리 원칙을 위반"
+            }
+          ]
+        },
+        "snippet_template": {
+          "class_template": "@{LayerAnnotation}\npublic class {ClassName} {\n    \n    @Autowired\n    private {DependencyType} {dependencyName};\n    \n    // 비즈니스 로직\n}",
+          "method_template": "public {ReturnType} {methodName}({ParameterType} {parameterName}) {\n    // {LayerName} 계층 로직\n    return {dependencyName}.{dependencyMethod}({parameterName});\n}",
+          "variable_naming": {
+            "pattern": "^[a-z][a-zA-Z0-9]*$",
+            "examples": ["userService", "userRepository", "orderService"]
+          }
+        },
+        "realtime_guide": {
+          "violation_message": "계층 분리 원칙을 위반했습니다. 상위 계층이 하위 계층만 의존해야 합니다",
+          "suggestion_message": "Controller는 Service만 의존하고, Service는 Repository만 의존하세요",
+          "warning_message": "Repository를 직접 호출하지 마세요. Service 계층을 통해 접근하세요",
+          "tip_message": "계층 간 의존성은 단방향으로만 흘러야 하며, 상위 계층은 하위 계층만 의존해야 합니다"
+        },
+        "violation_detection": {
+          "patterns": [
+            "@Autowired.*Repository",
+            "private.*Repository.*;",
+            "userRepository\\.",
+            "orderRepository\\."
+          ],
+          "severity": "ERROR",
+          "fix_suggestions": [
+            "Repository 의존성을 제거하고 Service를 의존하세요",
+            "Service 계층을 통해 Repository에 접근하세요",
+            "계층 분리 원칙을 준수하세요"
+          ]
+        }
+      },
+      "ci_info": {
+        "archunit_rule": {
+          "test_name": "controller_should_only_depend_on_service",
+          "rule_definition": "classes().that().resideInAPackage(\"..controller..\").should().onlyDependOnClassesThat().resideInAnyPackage(\"..service..\", \"java..\", \"javax..\", \"org.springframework..\")",
+          "imports": [
+            "com.tngtech.archunit.junit.ArchTest",
+            "com.tngtech.archunit.lang.ArchRule",
+            "com.tngtech.archunit.library.Architectures"
+          ]
+        },
+        "semgrep_rule": {
+          "rule_id": "layered-architecture-violation",
+          "patterns": [
+            {
+              "pattern": "@Autowired\\s+private\\s+.*Repository\\s+.*;",
+              "message": "Controller에서 Repository를 직접 의존하면 안 됩니다. Service를 사용하세요"
+            }
+          ],
+          "languages": ["java"],
+          "severity": "ERROR"
+        },
+        "drift_calculation": {
+          "rule_weight": 0.8,
+          "area_weight": 0.8,
+          "violation_points": {
+            "MUST": 10,
+            "SHOULD": 5,
+            "MUST NOT": 15
+          }
+        },
+        "pr_comment": {
+          "card_title": "🏗️ 아키텍처 위반",
+          "violation_summary": "계층 분리 원칙을 위반한 의존성이 발견되었습니다",
+          "fix_guidance": "Controller는 Service만 의존하고, Service는 Repository만 의존하세요",
+          "code_example": "@Autowired\nprivate UserService userService; // Repository 대신 Service 사용"
+        },
+        "workflow_config": {
+          "enabled_tools": ["archunit", "semgrep"],
+          "execution_order": ["archunit", "semgrep"],
+          "conditional_execution": {
+            "file_patterns": ["**/controller/**/*.java", "**/service/**/*.java", "**/repository/**/*.java"],
+            "language_detection": true
+          }
+        }
+      },
+      "metadata": {
+        "created_at": "2024-01-15T10:30:00Z",
+        "updated_at": "2024-01-15T10:30:00Z",
+        "version": "1.0.0",
+        "author": "김개발",
+        "tags": ["architecture", "layered", "dependency", "separation"]
+      }
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+# SpecGate MCP Server Dependencies
+
+# Core MCP Framework
+fastmcp==2.12.3
+mcp==1.14.1
+
+# HTTP Client for Confluence API
+aiohttp==3.12.15
+
+# Async file operations
+aiofiles==24.1.0
+
+# HTML to Markdown conversion
+beautifulsoup4==4.13.5
+markdownify==1.2.0
+
+# Testing
+pytest==8.4.2
+pytest-asyncio==1.2.0
+
+# Development
+python-dotenv==1.1.1

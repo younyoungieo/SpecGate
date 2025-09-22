@@ -1,0 +1,20 @@
+"""
+SpecLint 유틸리티 모듈
+
+규칙 정의, 상수, 공통 유틸리티를 포함합니다.
+"""
+from .rules import (
+    QUALITY_SCORING,
+    PERFORMANCE_REQUIREMENTS,
+    MEMORY_REQUIREMENTS,
+    STRUCTURE_CHECKS,
+    IMPROVEMENT_SUGGESTIONS
+)
+
+__all__ = [
+    'QUALITY_SCORING',
+    'PERFORMANCE_REQUIREMENTS',
+    'MEMORY_REQUIREMENTS',
+    'STRUCTURE_CHECKS',
+    'IMPROVEMENT_SUGGESTIONS'
+]
