@@ -38,10 +38,11 @@ class ConfluenceAPIClient:
             self.logger.info("💡 Cursor에서 MCP 서버를 사용할 때는 mcp.json의 환경변수가 자동으로 전달됩니다.")
             self.logger.info("💡 직접 실행 시에는 환경변수를 설정하거나 기본값을 사용합니다.")
             
-            # 기본값 설정 (개발/테스트용)
+            # 기본값 설정 (개발/테스트용) - 민감정보 하드코딩 금지
+            # 실제 실행 시에는 환경변수로만 설정하도록 유도
             self.domain = os.getenv("CONFLUENCE_DOMAIN", "your-domain.atlassian.net")
             self.email = os.getenv("CONFLUENCE_EMAIL", "your-email@example.com")
-            self.api_token = os.getenv("CONFLUENCE_API_TOKEN", "ATATT3xFfGF...
+            self.api_token = os.getenv("CONFLUENCE_API_TOKEN", "")
             
             self.logger.info("🔧 기본값으로 설정되었습니다 (개발/테스트용)")
             return True

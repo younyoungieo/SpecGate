@@ -113,3 +113,17 @@ Thumbs.db
 
 # BMad specific
 .bmad-core/
+
+# Python bytecode / cache
+__pycache__/
+*.pyc
+
+# Virtual environments
+venv/
+.env/
+
+# SpecGate local data
+.specgate/
+**/.specgate/
+**/__pycache__/
+**/*.pyc
