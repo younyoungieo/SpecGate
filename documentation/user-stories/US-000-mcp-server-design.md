@@ -6,19 +6,22 @@
 SpecGate MCP Server의 기본 구조를 FastMCP 2.0 표준에 맞게 구축하여 Phase 1의 MCP 도구들을 구현할 수 있는 기반을 마련한다.
 
 ### 1.2 핵심 기능
-- FastMCP 2.0 프레임워크 기반 서버 구축
-- Context 기반 도구 구현 (로깅, 진행상황 보고, 사용자 상호작용)
-- 미들웨어 아키텍처 (로깅, 에러처리, 인증)
-- fastmcp.json 기반 설정 관리
-- 서버 시작/종료 및 배포 관리
+- FastMCP 2.0 기반 서버 구성(필요 시 미들웨어/Context 사용)
+- 내부 패키지 구조로 도구 분리: `confluence_fetch/`, `speclint_lint/`, `html_to_md/`
+- 워크플로우 관리: `workflows/hitl/`(품질 점수 임계치 기반 GitHub Issue 자동 생성)
+- GitHub 통합: `integrations/github/` 클라이언트로 이슈 생성/조회/라벨/코멘트
+- 데이터 경로 표준화: `.specgate/data/html_files/`, `md_files/`, `.specgate/data/quality_reports/`
+- Confluence URL 정책: `_links.webui` → `https://{CONFLUENCE_DOMAIN}/wiki` 절대 URL 보정
+- 설정 관리: `fastmcp.json`/`demo-mcp.json` + 환경변수 일원화
 
 ## 2. FastMCP 2.0 서버 구조
 
 ### 2.1 서버 구성
 ```python
 from fastmcp import FastMCP, Context
-from fastmcp.server.middleware.logging import StructuredLoggingMiddleware
-from fastmcp.server.middleware.error_handling import ErrorHandlingMiddleware
+# (선택) 미들웨어는 필요 시 사용
+# from fastmcp.server.middleware.logging import StructuredLoggingMiddleware
+# from fastmcp.server.middleware.error_handling import ErrorHandlingMiddleware
 
 # FastMCP 2.0 서버 인스턴스 생성
 mcp = FastMCP(
@@ -27,8 +30,9 @@ mcp = FastMCP(
 )
 
 # 미들웨어 추가
-mcp.add_middleware(StructuredLoggingMiddleware())
-mcp.add_middleware(ErrorHandlingMiddleware())
+# (선택) 미들웨어 등록 예시
+# mcp.add_middleware(StructuredLoggingMiddleware())
+# mcp.add_middleware(ErrorHandlingMiddleware())
 ```
 
 ### 2.2 FastMCP 2.0 도구 구조
@@ -53,16 +57,15 @@ async def confluence_fetch(
         dict: 수집된 문서 정보
     """
     # Context를 통한 로깅 및 진행상황 보고
-    await ctx.info(f"Confluence 문서 수집 시작: {label}")
-    await ctx.report_progress(0, 100, "문서 검색 중...")
+    # 필요 시 진행률/로그 사용
+    # await ctx.info(f"Confluence 문서 수집 시작: {label}")
+    # await ctx.report_progress(0, 100, "문서 검색 중...")
     
     try:
         # 구현 로직
         result = {"status": "success", "documents": []}
-        await ctx.report_progress(100, 100, "수집 완료")
         return result
     except Exception as e:
-        await ctx.error(f"문서 수집 실패: {str(e)}")
         raise
 ```
 
@@ -96,20 +99,16 @@ async def confluence_fetch(
             "metadata": dict
         }
     """
-    await ctx.info(f"Confluence 문서 수집 시작 - 라벨: {label}")
-    await ctx.report_progress(0, 100, "Confluence API 연결 중...")
+    # 필요 시 Context 사용 (1차 구현은 내부 로깅 위주)
     
     try:
         # 1단계: Confluence API 호출
-        await ctx.report_progress(20, 100, "문서 검색 중...")
         documents = await _search_confluence_documents(label, space_key, limit)
         
         # 2단계: HTML→MD 변환
-        await ctx.report_progress(60, 100, "HTML→Markdown 변환 중...")
         converted_docs = await _convert_html_to_markdown(documents)
         
         # 3단계: 메타데이터 생성
-        await ctx.report_progress(90, 100, "메타데이터 생성 중...")
         metadata = {
             "total_count": len(converted_docs),
             "search_label": label,
@@ -123,12 +122,9 @@ async def confluence_fetch(
             "metadata": metadata
         }
         
-        await ctx.report_progress(100, 100, "수집 완료")
-        await ctx.info(f"총 {len(converted_docs)}개 문서 수집 완료")
         return result
         
     except Exception as e:
-        await ctx.error(f"Confluence 문서 수집 실패: {str(e)}")
         raise ToolError(f"문서 수집 중 오류 발생: {str(e)}")
 
 # 내부 헬퍼 함수들
@@ -142,6 +138,27 @@ async def _convert_html_to_markdown(documents: list) -> list:
     # 구현 예정
     pass
 ```
+
+### 2.3 현재 설계 (정규화)
+
+- 도구 구조: Phase 1 핵심 도구는 내부 패키지로 구성됨
+  - `confluence_fetch/`: 수집·변환 파이프라인 (서비스/클라이언트/트랜스포머 분리)
+  - `speclint_lint/`: 품질 검사 엔진 (분석/스코어/서제스트/밸리데이터 분리)
+  - `html_to_md/`: HTML→Markdown 변환기 (컨버터/파서/밸리데이터)
+  - `workflows/hitl/`: 점수 임계치 기반 GitHub Issue 워크플로우 매니저
+  - `integrations/github/`: GitHub API 클라이언트
+- 로깅/미들웨어: 표준 Python 로깅으로 단계 로그를 남기며, 미들웨어와 진행률 보고는 선택 가이드로 유지
+- 실행/설정: `fastmcp.json`와 `demo-mcp.json`를 병행하며, venv·스크립트 기반 실행을 지원
+- 데이터 경로 표준:
+  - HTML 원본: `.specgate/data/html_files/{제목}_{타임스탬프}.html`
+  - Markdown: `md_files/` (옵션, 필요 시 저장)
+  - 품질 리포트: `.specgate/data/quality_reports/` (옵션)
+- HITL 정책: 품질 점수 임계치에 따른 자동 처리
+  - ≥ 90: 자동 승인 (이슈 없음)
+  - 70–89: HITL 검토 이슈 생성, 라벨 `specgate:hitl`
+  - < 70: 필수 수정 이슈 생성, 라벨 `specgate:mandatory_fix`
+- Confluence URL 정책: `_links.webui` 상대경로를 `https://{CONFLUENCE_DOMAIN}/wiki` 접두로 절대 URL 보정
+- 에러 처리: 각 도구 내 의미 있는 예외 처리와 상태 리턴을 우선합니다
 
 ### 3.2 speclint.lint 도구
 ```python
@@ -348,7 +365,7 @@ if __name__ == "__main__":
     # mcp.run(transport="sse", host="0.0.0.0", port=8000)
 ```
 
-### 4.2 fastmcp.json 설정 파일
+### 4.2 설정 파일 및 환경 변수
 ```json
 {
   "$schema": "https://gofastmcp.com/public/schemas/fastmcp.json/v1.json",
@@ -371,6 +388,19 @@ if __name__ == "__main__":
     "host": "0.0.0.0"
   }
 }
+```
+
+환경 변수 (현재 구현 기준)
+```env
+# Confluence
+CONFLUENCE_DOMAIN=your-domain.atlassian.net
+CONFLUENCE_EMAIL=you@example.com
+CONFLUENCE_API_TOKEN=xxxx
+
+# GitHub
+GITHUB_TOKEN=ghp_xxx
+GITHUB_OWNER=owner
+GITHUB_REPO=repo
 ```
 
 ### 4.3 서버 생명주기 관리

@@ -4,7 +4,7 @@
 - **Story ID**: US-001
 - **Epic**: Epic 2 - Phase 1 입력 표준화
 - **Story Point**: 3
-- **상태**: 개발 중
+- **상태**: Ready for Review
 
 ### User Story
 **As a** 개발자,  

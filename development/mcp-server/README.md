@@ -20,22 +20,67 @@ pip install -e .
 ```
 
 ### 2. 환경 변수 설정
-Cursor의 `mcp.json`에 Confluence API 설정을 추가하세요:
+
+#### 필수 환경변수 (Confluence API)
+Cursor의 `mcp.json`에 다음 설정을 추가하세요:
+
 ```json
 {
   "mcpServers": {
-    "specgate": {
-      "command": "python",
+    "SpecGate": {
+      "command": "/path/to/venv/bin/python",
       "args": ["/path/to/specgate/mcp-server/server.py"],
       "env": {
         "CONFLUENCE_DOMAIN": "your-domain.atlassian.net",
         "CONFLUENCE_EMAIL": "your-email@example.com",
-        "CONFLUENCE_API_TOKEN": "your-api-token"
+        "CONFLUENCE_API_TOKEN": "your-api-token",
+        "CLIENT_WORK_DIR": "/path/to/your/project"
       }
     }
   }
 }
 ```
+
+#### 환경변수 설명
+
+| 변수명 | 필수여부 | 설명 | 예시 |
+|--------|----------|------|------|
+| `CONFLUENCE_DOMAIN` | ✅ 필수 | Confluence 도메인 | `company.atlassian.net` |
+| `CONFLUENCE_EMAIL` | ✅ 필수 | Confluence 계정 이메일 | `user@company.com` |
+| `CONFLUENCE_API_TOKEN` | ✅ 필수 | Confluence API 토큰 | `ATATT3xFfGF... |
+| `CLIENT_WORK_DIR` | 🔧 권장 | 파일 저장 위치 | `/Users/user/my-project` |
+
+#### 파일 저장 위치 설정
+
+**`CLIENT_WORK_DIR` 환경변수**를 설정하지 않으면 SpecGate가 실행되는 디렉토리에 파일이 저장됩니다.
+
+**권장 설정**: 프로젝트별로 파일을 저장하려면 `CLIENT_WORK_DIR`을 설정하세요:
+
+```json
+"CLIENT_WORK_DIR": "/Users/username/my-project"
+```
+
+그러면 다음 구조로 파일이 저장됩니다:
+```
+/Users/username/my-project/
+└── .specgate/
+    ├── data/
+    │   ├── html_files/        # Confluence 원본 HTML
+    │   ├── md_files/          # 변환된 Markdown
+    │   └── quality_reports/   # 품질 분석 리포트
+    └── logs/
+        └── specgate.log       # 실행 로그
+```
+
+#### Confluence API 토큰 생성 방법
+
+1. **Confluence 접속**: `https://your-domain.atlassian.net`
+2. **계정 설정**: 우측 상단 프로필 → `계정 설정`
+3. **보안**: `보안` 탭 → `API 토큰`
+4. **토큰 생성**: `API 토큰 만들기` → 레이블 입력 → `만들기`
+5. **토큰 복사**: 생성된 토큰을 안전한 곳에 보관
+
+⚠️ **보안 주의사항**: API 토큰은 외부에 노출되지 않도록 주의하세요.
 
 ### 3. 서버 실행
 ```bash

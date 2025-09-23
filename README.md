@@ -73,7 +73,30 @@ SpecGate/
 
 ## 🚀 개발 시작하기
 
-### 1. MCP 서버 실행
+### 1. 환경변수 설정
+
+Cursor의 `mcp.json`에 다음 설정을 추가하세요:
+
+```json
+{
+  "mcpServers": {
+    "SpecGate": {
+      "command": "/path/to/SpecGate/development/mcp-server/venv/bin/python",
+      "args": ["/path/to/SpecGate/development/mcp-server/server.py"],
+      "env": {
+        "CONFLUENCE_DOMAIN": "your-domain.atlassian.net",
+        "CONFLUENCE_EMAIL": "your-email@example.com", 
+        "CONFLUENCE_API_TOKEN": "your-api-token",
+        "CLIENT_WORK_DIR": "/path/to/your/project"
+      }
+    }
+  }
+}
+```
+
+**⚠️ 중요**: `CLIENT_WORK_DIR`을 설정하면 해당 프로젝트 폴더에 `.specgate/` 디렉토리가 생성되어 모든 파일이 저장됩니다.
+
+### 2. MCP 서버 실행
 ```bash
 cd development/mcp-server
 python -m venv venv
@@ -82,14 +105,14 @@ pip install -r requirements.txt
 python server.py
 ```
 
-### 2. 주요 MCP 도구들
+### 3. 주요 MCP 도구들
 - `confluence_fetch`: Confluence 문서 수집 및 HTML 저장
 - `convert_saved_html`: 저장된 HTML을 Markdown으로 변환
 - `check_document_quality`: 저장된 MD 파일의 품질 검사
 - `speclint_lint`: 문서 내용 직접 품질 검사
 - `html_to_md`: HTML 내용 직접 변환
 
-### 3. 단계별 워크플로우
+### 4. 단계별 워크플로우
 ```
 1. confluence_fetch(label="API") 
    → HTML 원본 저장 (data/html_files/)

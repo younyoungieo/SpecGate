@@ -1,0 +1,123 @@
+# SpecGate: HTML → Markdown 변환 스펙 (Phase 1)
+# 목적: Confluence HTML을 규칙 추출 가능한 Markdown으로 일관되게 변환
+# 범위: development/mcp-server/html_to_md/* 구현과 정합
+
+version: 1
+owner: specgate-team
+updated: 2025-09-23
+
+inputs:
+  source: confluence_html_storage
+  encoding: utf-8
+
+output:
+  format: markdown
+  encoding: utf-8
+  preserve_structure: true
+  file_naming:
+    pattern: "{title}_{timestamp}.md"
+    timestamp_format: "%Y%m%d_%H%M%S"
+    safe_title_rules:
+      - alnum_keep: true
+      - keep_chars: [" ", "-", "_"]
+      - spaces_to_underscore: true
+  directories:
+    html_origin: ".specgate/data/html_files/"
+    markdown: "md_files/"  # 필요 시 저장
+
+rules:
+  headings:
+    mapping:
+      h1: "# "
+      h2: "## "
+      h3: "### "
+      h4: "#### "
+      h5: "##### "
+      h6: "###### "
+    collapse_empty_lines: true
+
+  text_inline:
+    strong:
+      open: "**"
+      close: "**"
+    em:
+      open: "*"
+      close: "*"
+    br: "\n"
+    p_close_to_newline: true
+
+  lists:
+    ul_item_prefix: "- "
+    ol_item_prefix: "1. "  # 번호는 렌더러에서 자동 처리
+    normalize_nesting: true
+
+  tables:
+    enabled: true
+    markdown_format: pipe
+    header_detection: true
+    preserve_structure: true
+
+  code_blocks:
+    fence: "```"
+    preserve_language: true
+    indent_preservation: true
+
+  links:
+    absolute_url_policy:
+      confluence_webui_prefix: "https://{CONFLUENCE_DOMAIN}/wiki"
+      # transformer에서 _links.webui가 '/spaces/..'인 경우 접두어를 붙여 절대경로화
+    convert_webui_to_absolute: true
+
+  images:
+    keep_alt_text: true
+    inline_format: "![{alt}]({src})"
+    download_assets: false
+
+  sanitization:
+    remove_unknown_tags: true
+    strip_html_comments: true
+    collapse_multiple_blank_lines: true
+
+metadata:
+  preserve:
+    - id
+    - title
+    - space_key
+    - space_name
+    - labels
+    - created
+    - modified
+    - version
+    - url   # 절대 URL (webui 보정 반영)
+  embed_in_output: false  # 필요 시 front-matter로 전환 가능
+
+quality:
+  validation:
+    min_length_chars: 1
+    allow_empty: false
+  post_processors:
+    - trim_trailing_spaces
+    - ensure_final_newline
+
+examples:
+  heading:
+    html: "<h2>설계 규칙</h2>"
+    md:   "## 설계 규칙\n"
+  strong_em:
+    html: "<p><strong>중요</strong> <em>강조</em></p>"
+    md:   "**중요** *강조*\n\n"
+  list:
+    html: "<ul><li>항목1</li><li>항목2</li></ul>"
+    md:   "- 항목1\n- 항목2\n\n"
+  code:
+    html: "<pre><code class=\"language-python\">print('hi')</code></pre>"
+    md: |-
+      ```python
+      print('hi')
+      ```
+
+notes:
+  - 본 스펙은 Phase 1 변환 목적(규칙 추출 준비)에 초점을 둡니다.
+  - 변환 로직은 development/mcp-server/html_to_md/* 및 confluence_fetch/transformer.py의 절대 URL 보정과 정합해야 합니다.
+
+

@@ -54,18 +54,17 @@ sequenceDiagram
     Note over SpecGate: 1단계: 문서 수집 및 HTML 원본 저장
     SpecGate->>Confluence: confluence_fetch(라벨/경로 기준, save_html=True)
     Confluence-->>SpecGate: HTML 문서 반환
-    SpecGate->>FileSystem: HTML 원본 저장 (html_files/)
+    SpecGate->>FileSystem: HTML 원본 저장 (.specgate/data/html_files/{제목}_{타임스탬프}.html)
     SpecGate-->>Author: "3개 문서 수집 완료. HTML 원본 저장됨"
     
     Note over SpecGate: 2단계: HTML을 Markdown으로 변환
     SpecGate->>SpecGate: html_to_md(html_content)
-    SpecGate->>FileSystem: Markdown 파일 저장 (markdown_files/)
+    SpecGate->>FileSystem: Markdown 파일 저장 (옵션, 저장 시 md_files/)
     SpecGate-->>Author: "Markdown 변환 완료. 파일 저장됨"
     
     Note over SpecGate: 3단계: 문서 품질 검사
     SpecGate->>SpecGate: speclint_lint(content)
-    SpecGate->>FileSystem: 품질 검사 결과 저장 (quality_reports/)
-    SpecGate->>FileSystem: 품질 검사 결과 저장 (quality_reports/)
+    SpecGate->>FileSystem: 품질 검사 결과 저장 (옵션, .specgate/data/quality_reports/)
     
     alt 품질 점수 ≥ 90점
         SpecGate-->>Author: "품질 검사 통과! 점수: 95/100"
@@ -83,11 +82,7 @@ sequenceDiagram
         SpecGate-->>Author: "문서 수정 필수: 70점 미만입니다"
         Note over Author,SpecGate: 문서 수정 후 재검사 필요
     end
-    
-    Note over SpecGate: 워크플로우 장점
-    Note over FileSystem: - HTML 원본 보존 (디버깅/추적 용이)
-    Note over FileSystem: - 단계별 파일 저장 (중간 결과 보존)
-    Note over FileSystem: - 자연스러운 대화 흐름 지원
+
     
     Note over SpecGate: Phase 2로 전달 준비
     SpecGate->>SpecGate: 승인된 MD 문서 → Phase 2 전달
@@ -261,12 +256,12 @@ example_project/
 
 **2.3.4 HITL 검토 프로세스 - GitHub Issue 기반**
 
-**2.3.4.1 Issue 생성 규칙**
+**2.3.4.1 Issue 생성 규칙 (구현 반영)**
 ```python
 # HITL 검토용 Issue (70-89점)
 HITL_ISSUE_TEMPLATE = {
     'title': '[HITL 검토] {project_name} {doc_type} 설계서 - 품질점수 {score}점',
-    'labels': ['specgate:hitl-review', 'specgate:quality-70-89', f'specgate:project:{project_name}'],
+    'labels': ['specgate:hitl', 'specgate:quality-70-89', f'specgate:project:{project_name}'],
     'assignee': 'tech-lead',  # 기술 리더에게 할당
     'body': '''
 ## 📋 문서 검토 요청
@@ -295,7 +290,7 @@ HITL_ISSUE_TEMPLATE = {
 # 필수 수정용 Issue (70점 미만)
 MANDATORY_FIX_ISSUE_TEMPLATE = {
     'title': '[필수 수정] {project_name} {doc_type} 설계서 - 품질점수 {score}점',
-    'labels': ['specgate:mandatory-fix', 'specgate:quality-under-70', f'specgate:project:{project_name}'],
+    'labels': ['specgate:mandatory_fix', 'specgate:quality-under-70', f'specgate:project:{project_name}'],
     'assignee': 'document-author',  # 문서 작성자에게 할당
     'body': '''
 ## ⚠️ 문서 수정 필수
@@ -332,7 +327,7 @@ def process_quality_score(quality_score, document_info):
         }
     
     elif quality_score >= 70 and quality_score < 90:
-        issue_url = create_hitl_review_issue(document_info)
+        issue_url = create_hitl_review_issue(document_info)  # 라벨: specgate:hitl
         return {
             'status': 'hitl_review_required',
             'message': f'⚠️ HITL 검토가 필요합니다. GitHub Issue: {issue_url}',
@@ -340,7 +335,7 @@ def process_quality_score(quality_score, document_info):
         }
     
     else:  # quality_score < 70
-        issue_url = create_mandatory_fix_issue(document_info)
+        issue_url = create_mandatory_fix_issue(document_info)  # 라벨: specgate:mandatory_fix
         return {
             'status': 'mandatory_fix_required',
             'message': f'❌ 문서 수정이 필수입니다. GitHub Issue: {issue_url}',
@@ -484,19 +479,19 @@ RULE_REF_PATTERN = r'참조:\s*([^\n]+)'
 ## 3. 산출물
 
 ### 3.1 Authoring Guide 문서
-- **파일명**: `docs/authoring-guide.md`
+- **파일명**: `confluence-guide/authoring-guide.md`
 - **내용**: Confluence 문서 작성 표준 템플릿 및 가이드라인
 - **대상**: 설계 문서 작성자 (Tech Lead, 아키텍트)
 - **활용**: confluence.fetch MCP tool의 입력 기준
 
 ### 3.2 Confluence 정책 문서
-- **파일명**: `docs/confluence-policy.md`
+- **파일명**: `confluence-guide/confluence-policy.md`
 - **내용**: 라벨 체계, 폴더 구조, 수집 규칙 정의
 - **대상**: Confluence 관리자, 프로젝트 매니저
 - **활용**: confluence.fetch MCP tool의 수집 로직 구현
 
 ### 3.3 SpecLint 규칙 정의
-- **파일명**: `rules/speclint-rules.yaml`
+- **파일명**: `development/rules/speclint-rules.yaml`
 - **내용**: 문서 품질 검사 규칙 및 점수 산정 기준
 - **대상**: speclint.lint MCP tool
 - **활용**: 자동 품질 검사 및 신뢰도 평가

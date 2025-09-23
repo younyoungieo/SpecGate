@@ -1,0 +1,219 @@
+# SpecLint 품질 검사 규칙 정의
+# 
+# Confluence에서 가져온 설계 문서의 품질을 검사하기 위한
+# 규칙과 점수 산정 기준을 정의합니다.
+#
+# 작성일: 2024-01-15
+# 버전: 1.0.0
+# 출처: development/mcp-server/speclint_lint/utils/rules.py
+
+# =============================================================================
+# 문서 구조 검사 규칙
+# =============================================================================
+structure_checks:
+  title_format:
+    pattern: '^#\s*\[[^\]]+\]\s*(\[[^\]]+\]|\w+)\s*설계서\s*$'
+    weight: 20
+    description: '문서 제목이 "[프로젝트명] [문서유형] 설계서" 형식인가?'
+    example: '# [SpecGate] API 설계서'
+    
+  design_rules_section:
+    pattern: '##\s*2\.\s*설계\s*규칙'
+    weight: 30
+    description: '설계 규칙 섹션이 존재하는가?'
+    required: true
+    
+  rule_format:
+    pattern: '\*\*RULE-[A-Z]+-[0-9]+\*\*\s*\([A-Z\s]+\):'
+    weight: 3
+    description: '규칙이 "RULE-[영역]-[번호] (유형): [규칙]" 형식을 따르는가?'
+    example: '**RULE-API-001** (MUST): 모든 API는 JSON 형식으로 응답해야 한다'
+    per_rule: true
+    
+  technical_spec_section:
+    pattern: '##\s*3\.\s*기술\s*스펙'
+    weight: 25
+    description: '기술 스펙 섹션이 존재하는가?'
+    required: true
+
+# =============================================================================
+# 품질 점수 산정 규칙 (차감 방식)
+# =============================================================================
+quality_scoring:
+  base_score: 100
+  
+  # 차감 점수 정의
+  deductions:
+    # 필수 구조 관련
+    title_format_mismatch: -20
+    design_rules_missing: -30
+    technical_spec_missing: -25
+    
+    # 규칙 형식 관련 (규칙당 차감)
+    rule_id_format_mismatch: -3    # per rule
+    rule_type_mismatch: -2         # per rule
+    scope_missing: -2              # per rule  
+    reason_missing: -2             # per rule
+    reference_missing: -1          # per rule
+    rule_content_too_short: -1     # per rule
+    
+    # 내용 품질 관련
+    no_rules_found: -15
+    design_rules_keywords_missing: -10
+    design_rules_insufficient: -15
+    rule_spec_relation_missing: -10
+    code_example_missing: -5
+    change_history_missing: -5
+    
+    # 치명적 오류
+    parsing_error: -100
+  
+  # 품질 등급 임계점
+  thresholds:
+    high_quality: 90      # 자동 승인
+    medium_quality: 70    # HITL 검토 필요
+    low_quality: 0        # 필수 수정
+
+# =============================================================================
+# 규칙 유형 정의
+# =============================================================================
+rule_types:
+  valid_types:
+    - "MUST"
+    - "SHOULD" 
+    - "MUST NOT"
+    - "MAY"
+    - "SHOULD NOT"
+  
+  priorities:
+    "MUST": 5
+    "MUST NOT": 5
+    "SHOULD": 3
+    "SHOULD NOT": 3  
+    "MAY": 1
+
+# =============================================================================
+# 영역 코드 정의
+# =============================================================================
+area_codes:
+  valid_areas:
+    - "API"       # API 설계 관련
+    - "DATA"      # 데이터 모델 관련
+    - "ARCH"      # 아키텍처 관련
+    - "SEC"       # 보안 관련
+    - "PERF"      # 성능 관련
+    - "UI"        # 사용자 인터페이스 관련
+    - "TEST"      # 테스트 관련
+    - "DEV"       # 개발 관련
+    - "OPS"       # 운영 관련
+
+# =============================================================================
+# 개선 제안 매핑
+# =============================================================================
+improvement_suggestions:
+  parsing_error: "문서 내용을 확인하고 올바른 형식으로 작성하세요."
+  
+  title_format_mismatch: |
+    제목을 '[프로젝트명] [문서유형] 설계서' 형식으로 수정하세요. 
+    예: '[SpecGate] API 설계서'
+    
+  design_rules_missing: |
+    ## 2. 설계 규칙 섹션을 추가하고 설계 원칙을 명시하세요.
+    하위 섹션으로 MUST, SHOULD, MUST NOT 규칙을 구분하여 작성하세요.
+    
+  technical_spec_missing: |
+    ## 3. 기술 스펙 섹션을 추가하고 기술적 세부사항을 설명하세요.
+    OpenAPI 스펙이나 ERD 다이어그램을 포함하는 것을 권장합니다.
+    
+  no_rules_found: |
+    설계 규칙을 **RULE-[영역]-[번호]** (유형): [규칙] 형식으로 추가하세요.
+    예: **RULE-API-001** (MUST): 모든 API는 JSON 형식으로 응답해야 한다
+    
+  rule_type_mismatch: |
+    규칙 유형을 MUST, SHOULD, MUST NOT, MAY, SHOULD NOT 중 하나로 수정하세요.
+    
+  rule_content_too_short: |
+    규칙 내용을 더 구체적이고 명확하게 작성하세요.
+    적용 범위, 근거, 참조 정보를 포함하는 것을 권장합니다.
+    
+  code_example_missing: |
+    코드 예제를 ```코드블록``` 형식으로 추가하세요.
+    설계 규칙을 구체적으로 설명하는 예시를 포함하면 문서 품질이 향상됩니다.
+    
+  change_history_missing: |
+    ## 5. 변경 이력 섹션을 추가하여 문서 변경 사항을 추적하세요.
+    테이블 형식으로 버전, 날짜, 변경내용, 작성자를 기록하세요.
+
+# =============================================================================
+# 성능 요구사항
+# =============================================================================
+performance_requirements:
+  single_document:
+    max_processing_time: 5.0    # 5초 이내
+    target_time: 2.0            # 목표 2초
+    timeout: 10.0               # 최대 10초
+    
+  batch_processing:
+    max_processing_time: 30.0   # 30초 이내 (10개 문서)
+    target_time: 15.0           # 목표 15초
+    timeout: 60.0               # 최대 60초
+
+# =============================================================================
+# 메모리 사용량 제한
+# =============================================================================  
+memory_requirements:
+  per_document:
+    max_size: 10485760          # 10MB per document
+    warning_threshold: 8388608   # 8MB 경고
+    rejection_threshold: 15728640 # 15MB 거부
+    
+  total_memory:
+    max_usage: 104857600        # 100MB 총 사용량
+    gc_threshold: 83886080      # 80MB에서 가비지 컬렉션
+
+# =============================================================================
+# 검사 모드별 설정
+# =============================================================================
+check_modes:
+  full:
+    description: "전체 품질 검사 (모든 규칙 적용)"
+    enabled_checks:
+      - structure_checks
+      - rule_format_checks
+      - content_quality_checks
+      - performance_checks
+    timeout: 10.0
+    
+  basic:
+    description: "기본 품질 검사 (필수 구조만)"
+    enabled_checks:
+      - structure_checks
+    timeout: 5.0
+    
+  structure:
+    description: "구조 검사만 (빠른 검증용)"
+    enabled_checks:
+      - structure_checks
+    timeout: 3.0
+
+# =============================================================================
+# 메타데이터
+# =============================================================================
+metadata:
+  version: "1.0.0"
+  created_date: "2024-01-15"
+  last_modified: "2024-01-15"
+  compatible_speclint_version: ">=1.0.0"
+  description: "SpecGate 시스템의 설계 문서 품질 검사 규칙"
+  
+  # 규칙 통계
+  total_structure_checks: 4
+  total_deduction_rules: 14
+  total_suggestion_templates: 8
+  
+  # 변경 이력
+  changelog:
+    - version: "1.0.0"
+      date: "2024-01-15"
+      changes: "초기 규칙 정의 및 YAML 파일 생성"
+      author: "SpecGate Team"
