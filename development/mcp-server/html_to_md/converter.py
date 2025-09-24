@@ -51,6 +51,12 @@ class HTMLToMarkdownConverter:
                 if converted:
                     markdown_parts.append(converted)
             
+            # Confluence 특수 매크로 처리
+            for macro in soup.find_all('ac:structured-macro'):
+                converted = self._convert_confluence_macro(macro)
+                if converted:
+                    markdown_parts.append(converted)
+            
             # 빈 줄로 구분하여 결합
             markdown_content = '\n\n'.join(markdown_parts)
             t2 = time.perf_counter()
@@ -274,6 +280,74 @@ class HTMLToMarkdownConverter:
         
         return 'text'
     
+    def _convert_confluence_macro(self, macro: Tag) -> str:
+        """Confluence 특수 매크로를 변환한다."""
+        macro_name = macro.get('ac:name', '')
+        
+        if macro_name == 'code':
+            return self._convert_confluence_code_macro(macro)
+        elif macro_name == 'info':
+            return self._convert_confluence_info_macro(macro)
+        elif macro_name == 'warning':
+            return self._convert_confluence_warning_macro(macro)
+        elif macro_name == 'note':
+            return self._convert_confluence_note_macro(macro)
+        else:
+            # 알 수 없는 매크로는 텍스트로 변환
+            return macro.get_text().strip()
+    
+    def _convert_confluence_code_macro(self, macro: Tag) -> str:
+        """Confluence 코드 매크로를 변환한다."""
+        # 언어 파라미터 확인
+        language_param = macro.find('ac:parameter', {'ac:name': 'language'})
+        language = language_param.get_text().strip() if language_param else ''
+        
+        # 코드 내용 추출 (CDATA 섹션 처리)
+        plain_text_body = macro.find('ac:plain-text-body')
+        if plain_text_body:
+            # CDATA 섹션에서 텍스트 추출
+            code_content = self._extract_cdata_content(plain_text_body)
+            if code_content:
+                if language:
+                    return f"```{language}\n{code_content}\n```"
+                else:
+                    return f"```\n{code_content}\n```"
+        
+        return ''
+    
+    def _extract_cdata_content(self, element: Tag) -> str:
+        """CDATA 섹션에서 내용을 추출한다."""
+        # CDATA 섹션 찾기
+        for content in element.contents:
+            if hasattr(content, 'strip') and content.strip():
+                # CDATA 섹션은 보통 문자열로 저장됨
+                text = content.strip()
+                # CDATA 태그 제거
+                if text.startswith('[CDATA[') and text.endswith(']]'):
+                    text = text[7:-2]  # [CDATA[ 와 ]] 제거
+                return text
+        
+        # 일반 텍스트 추출 시도
+        text = element.get_text().strip()
+        if text.startswith('[CDATA[') and text.endswith(']]'):
+            text = text[7:-2]  # [CDATA[ 와 ]] 제거
+        return text
+    
+    def _convert_confluence_info_macro(self, macro: Tag) -> str:
+        """Confluence 정보 매크로를 변환한다."""
+        content = macro.get_text().strip()
+        return f"> **정보**: {content}"
+    
+    def _convert_confluence_warning_macro(self, macro: Tag) -> str:
+        """Confluence 경고 매크로를 변환한다."""
+        content = macro.get_text().strip()
+        return f"> **⚠️ 경고**: {content}"
+    
+    def _convert_confluence_note_macro(self, macro: Tag) -> str:
+        """Confluence 노트 매크로를 변환한다."""
+        content = macro.get_text().strip()
+        return f"> **📝 노트**: {content}"
+    
     def _cleanup_markdown(self, markdown: str) -> str:
         """Markdown을 정리한다."""
         # 연속된 빈 줄을 2개로 제한
@@ -286,13 +360,19 @@ class HTMLToMarkdownConverter:
     
     def _extract_metadata(self, soup: BeautifulSoup) -> Dict[str, Any]:
         """메타데이터를 추출한다."""
+        # 코드 블록 개수 계산 (pre 태그 + Confluence 코드 매크로)
+        pre_code_blocks = len(soup.find_all('pre'))
+        confluence_code_blocks = len(soup.find_all('ac:structured-macro', {'ac:name': 'code'}))
+        total_code_blocks = pre_code_blocks + confluence_code_blocks
+        
         metadata = {
             'title': '',
             'has_tables': len(soup.find_all('table')) > 0,
-            'has_code_blocks': len(soup.find_all('pre')) > 0,
+            'has_code_blocks': total_code_blocks > 0,
             'has_lists': len(soup.find_all(['ul', 'ol'])) > 0,
             'has_links': len(soup.find_all('a')) > 0,
-            'has_images': len(soup.find_all('img')) > 0
+            'has_images': len(soup.find_all('img')) > 0,
+            'code_blocks_count': total_code_blocks
         }
         
         # 제목 추출

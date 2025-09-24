@@ -109,7 +109,22 @@ async def confluence_fetch(
         output_dir = _get_client_work_dir()
     # _set_client_work_dir() 호출 제거됨 - 경로 설정 로직 단순화
     
-    fetch_result = await confluence_service.fetch_documents(label, space_key, limit, save_html, output_dir)
+    try:
+        fetch_result = await confluence_service.fetch_documents(label, space_key, limit, save_html, output_dir)
+    except RuntimeError as e:
+        if "This event loop is already running" in str(e):
+            # 이벤트 루프 충돌 시 간단한 오류 메시지 반환
+            return {
+                "status": "error",
+                "documents": [],
+                "metadata": {
+                    "error": "이벤트 루프 충돌로 인해 Confluence 서비스를 실행할 수 없습니다. 서버를 재시작해주세요.",
+                    "timestamp": datetime.now().isoformat(),
+                    "search_label": label
+                }
+            }
+        else:
+            raise
 
     # 자동 파이프라인: HTML → MD → Lint
     if auto_pipeline and fetch_result.get("status") == "success":
@@ -171,7 +186,7 @@ async def confluence_fetch(
                 if markdown_text:
                     # auto_create_github_issues는 내부 speclint_lint의 HITL 호출과 별개로,
                     # 자동 파이프라인 단계에서의 HITL 연동 여부를 제어
-                    lint_result = await speclint_engine.lint(markdown_text, "full")
+                    lint_result = await speclint_engine.lint(markdown_text, "full", document_title)
                     # HITL 워크플로우 연동 (auto_pipeline 경로에서도 이슈 생성)
                     try:
                         # 문서 메타정보 준비
@@ -185,7 +200,7 @@ async def confluence_fetch(
                             project_name = m.group(1)
                             doc_type = m.group(2)
 
-                        from hitl_manager import DocumentInfo as _DocumentInfo, QualityResult as _QualityResult
+                        from workflows.hitl.manager import DocumentInfo as _DocumentInfo, QualityResult as _QualityResult
 
                         document_info = _DocumentInfo(
                             title=document_title,
@@ -276,7 +291,7 @@ async def confluence_fetch(
 # 2. speclint.lint 도구 구현 (HITL 워크플로우 통합)
 # =============================================================================
 from speclint_lint import SpecLint
-from hitl_manager import HITLWorkflowManager, DocumentInfo, QualityResult
+from workflows.hitl.manager import HITLWorkflowManager, DocumentInfo, QualityResult
 
 # SpecLint 인스턴스 생성
 speclint_engine = SpecLint()
@@ -318,7 +333,7 @@ async def speclint_lint(
             "hitl_workflow": dict  # HITL 워크플로우 결과 (enable_hitl=True인 경우)
         }
     """
-    result = await speclint_engine.lint(content, check_type)
+    result = await speclint_engine.lint(content, check_type, document_title)
     
     # HITL 워크플로우 처리
     hitl_result = None

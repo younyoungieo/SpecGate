@@ -60,8 +60,8 @@ QUALITY_SCORING = {
         'design_rules_insufficient': -15
     },
     'thresholds': {
-        'high_quality': 90,      # 자동 승인
-        'medium_quality': 70,    # HITL 검토
+        'high_quality': 80,      # 자동 승인 (기준 완화)
+        'medium_quality': 60,    # HITL 검토 (기준 완화)
         'low_quality': 0         # 필수 수정
     }
 }

@@ -190,7 +190,6 @@ class ConfluenceService:
     async def _save_html_files(self, documents: List[Dict[str, Any]], label: str, output_dir: Optional[str] = None) -> List[str]:
         """HTML 원본을 파일로 저장"""
         import os
-        import aiofiles
         from datetime import datetime
         
         try:
@@ -255,8 +254,14 @@ class ConfluenceService:
                     # HTML 파일 저장
                     if os.path.exists(filepath):
                         self.logger.info(f"기존 HTML 파일 대체: {filepath}")
-                    async with aiofiles.open(filepath, 'w', encoding='utf-8') as f:
-                        await f.write(doc["html_content"])
+                    
+                    # aiofiles 대신 일반 파일 쓰기 사용 (이벤트 루프 충돌 방지)
+                    try:
+                        with open(filepath, 'w', encoding='utf-8') as f:
+                            f.write(doc["html_content"])
+                    except Exception as e:
+                        self.logger.error(f"HTML 파일 저장 실패: {filepath} - {e}")
+                        continue
                     
                     html_files.append(filepath)
                     self.logger.info(f"HTML 파일 저장: {filepath}")

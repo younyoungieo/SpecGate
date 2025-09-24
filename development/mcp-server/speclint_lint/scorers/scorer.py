@@ -25,14 +25,22 @@ class QualityScorer:
         # 위반 사항에 따른 차감 점수 계산 (penalty는 음수이므로 절댓값 사용)
         total_penalty = sum(abs(violation.get("penalty", 0)) for violation in violations)
         
-        # 최종 점수 계산
-        if structure_score > 0:
-            # 구조가 있으면 구조 점수를 기반으로 차감
-            final_score = max(0, structure_score - total_penalty)
+        # 최종 점수 계산 로직 개선
+        if violations:
+            # 위반사항이 있으면 구조 점수에서 차감 (구조 점수가 더 정확한 평가)
+            if structure_score > 0:
+                final_score = max(0, structure_score - total_penalty)
+            else:
+                # 구조 점수가 없으면 기본 점수에서 차감
+                base_score = self.scoring['base_score']
+                final_score = max(0, base_score - total_penalty)
         else:
-            # 구조가 없으면 기본 점수에서 차감
-            base_score = self.scoring['base_score']
-            final_score = max(0, base_score - total_penalty)
+            # 위반사항이 없으면 구조 점수 사용
+            if structure_score > 0:
+                final_score = structure_score
+            else:
+                # 구조 점수도 없으면 기본 점수
+                final_score = self.scoring['base_score']
         
         # 0-100 범위 보장
         return max(0, min(100, final_score))
