@@ -502,11 +502,6 @@ RULE_REF_PATTERN = r'참조:\s*([^\n]+)'
 - **대상**: confluence.fetch MCP tool의 정규화 로직
 - **활용**: 일관된 Markdown 변환 및 규칙 추출
 
-### 3.5 검증 스크립트
-- **파일명**: `scripts/validate-input-standards.py`
-- **내용**: Phase 1 표준 준수 여부를 검증하는 스크립트
-- **대상**: 개발자, CI/CD 파이프라인
-- **활용**: 표준 준수 자동 검증
 
 ## 4. 선행조건
 

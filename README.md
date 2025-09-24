@@ -30,23 +30,24 @@ SpecGate/
 │       └── UserStory_Template.md
 ├── 💻 development/                       # 모든 개발 코드
 │   ├── mcp-server/                       # MCP 서버 (Python)
-│   │   ├── confluence/                   # Confluence 모듈
-│   │   ├── speclint/                     # 품질 검사 모듈
-│   │   ├── htmlconverter/                # HTML→MD 변환 모듈
+│   │   ├── confluence_fetch/             # Confluence API 연동 모듈
+│   │   ├── speclint_lint/                # 품질 검사 모듈
+│   │   ├── html_to_md/                   # HTML→MD 변환 모듈
+│   │   ├── workflows/                    # HITL 워크플로우
+│   │   ├── integrations/                 # GitHub 연동
 │   │   ├── tests/                        # 테스트 코드
-│   │   └── server.py                     # 메인 서버
-│   ├── data/                            # 처리된 데이터
-│   │   ├── html_files/                   # HTML 원본
-│   │   ├── markdown_files/               # 변환된 MD
-│   │   └── quality_reports/              # 품질 검사 결과
-│   └── tools/                           # 개발 도구/스크립트
+│   │   ├── server.py                     # 메인 서버
+│   │   ├── requirements.txt              # Python 의존성
+│   │   └── README.md                     # 서버 사용법
+│   └── rules/                           # SpecLint 규칙 정의
+│       └── speclint-rules.yaml
 ├── 🎥 presentations/                     # 발표 자료
 │   ├── SpecGate_keynote.pdf
 │   └── SpecGate_keynote_jpeg/
-└── 🗑️ archive/                          # 구 버전/참고용 파일들
-    ├── analysis/
-    ├── demo/
-    └── presentation_guides/
+├── 📋 confluence-guide/                  # Confluence 가이드
+│   ├── authoring-guide.md
+│   └── confluence-policy.md
+└── 📄 README.md                          # 프로젝트 개요
 ```
 
 ## 📂 폴더별 설명
@@ -59,17 +60,19 @@ SpecGate/
 
 ### 💻 development/
 - **mcp-server/**: FastMCP 기반 Python 서버 (메인 개발 영역)
-  - `confluence/`: Confluence API 연동 모듈
-  - `speclint/`: 문서 품질 검사 엔진
-  - `htmlconverter/`: HTML→Markdown 변환기
-- **data/**: 처리된 HTML, Markdown, 품질 검사 결과
-- **tools/**: 개발 도구 및 스크립트
+  - `confluence_fetch/`: Confluence API 연동 모듈
+  - `speclint_lint/`: 문서 품질 검사 엔진
+  - `html_to_md/`: HTML→Markdown 변환기
+  - `workflows/`: HITL 워크플로우 관리
+  - `integrations/`: GitHub API 연동
+  - `tests/`: 단위/통합/E2E 테스트
+- **rules/**: SpecLint 품질 검사 규칙 정의
 
 ### 🎥 presentations/
 - 프로젝트 발표 자료 (Keynote PDF, 이미지)
 
-### 🗑️ archive/
-- 구 버전 파일, 분석 자료, 참고용 문서
+### 📋 confluence-guide/
+- Confluence 문서 작성 가이드 및 정책
 
 ## 🚀 개발 시작하기
 

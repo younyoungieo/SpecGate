@@ -98,6 +98,7 @@ pids
 # IDE
 .vscode/
 .idea/
+.cursor/
 *.swp
 *.swo
 *~
@@ -111,8 +112,6 @@ pids
 ehthumbs.db
 Thumbs.db
 
-# BMad specific
-.bmad-core/
 
 # Python bytecode / cache
 __pycache__/
@@ -127,3 +126,9 @@ venv/
 **/.specgate/
 **/__pycache__/
 **/*.pyc
+
+# Archive and temporary files
+archive/
+
+# BMad specific (IDE extension)
+.bmad-core/
