@@ -88,6 +88,7 @@ temp/
 # Logs
 logs
 *.log
+specgate.log
 
 # Runtime data
 pids
