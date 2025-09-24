@@ -1,4 +1,96 @@
-<h2>1. 개요</h2><ul><li><p><strong>목적</strong>: SpecGate 시스템의 성능 최적화 및 확장성 설계</p></li><li><p><strong>배경</strong>: 대용량 설계 문서 처리 및 실시간 CI 게이트 처리를 위한 성능 최적화 필요</p></li><li><p><strong>참고사항</strong>: 비동기 처리, 캐싱 전략, 메모리 최적화 적용</p></li></ul><h2>2. 설계 규칙 (Design Rules)</h2><h3>2.1 MUST 규칙 (필수)</h3><ul><li><p><strong>RULE-PERF-001</strong> (MUST): 모든 I/O 작업은 비동기로 처리해야 한다</p><ul><li><p>적용 범위: Confluence API 호출, 파일 읽기/쓰기, 네트워크 통신</p></li><li><p>근거: 동시 처리 성능 향상 및 리소스 효율성 극대화</p></li><li><p>참조: Python asyncio 모범 사례</p></li></ul></li><li><p><strong>RULE-PERF-002</strong> (MUST): 모든 외부 API 호출은 적절한 타임아웃을 설정해야 한다</p><ul><li><p>적용 범위: Confluence API, GitHub API 등 모든 외부 서비스 호출</p></li><li><p>근거: 무한 대기 방지 및 시스템 안정성 보장</p></li><li><p>참조: API 설계 모범 사례</p></li></ul></li><li><p><strong>RULE-PERF-003</strong> (MUST): 메모리 사용량은 1GB를 초과해서는 안 된다</p><ul><li><p>적용 범위: 모든 Phase의 메모리 사용</p></li><li><p>근거: 시스템 안정성 및 확장성 보장</p></li><li><p>참조: Python 메모리 관리 가이드</p></li></ul></li></ul><h3>2.2 SHOULD 규칙 (권장)</h3><ul><li><p><strong>RULE-PERF-004</strong> (SHOULD): 반복적인 작업은 캐싱을 활용해야 한다</p><ul><li><p>적용 범위: Confluence 문서 조회, 품질 검사 결과, 변환 결과</p></li><li><p>근거: 응답 시간 단축 및 외부 API 호출 최소화</p></li><li><p>참조: 캐싱 전략 모범 사례</p></li></ul></li><li><p><strong>RULE-PERF-005</strong> (SHOULD): 대용량 문서는 스트리밍으로 처리해야 한다</p><ul><li><p>적용 범위: HTML&rarr;MD 변환, 규칙 추출, 품질 검사</p></li><li><p>근거: 메모리 사용량 최적화 및 처리 성능 향상</p></li><li><p>참조: 스트리밍 처리 패턴</p></li></ul></li></ul><h3>2.3 금지 규칙 (Prohibited)</h3><ul><li><p><strong>RULE-PERF-006</strong> (MUST NOT): 동기 I/O 작업을 사용해서는 안 된다</p><ul><li><p>적용 범위: 모든 I/O 작업</p></li><li><p>근거: 성능 저하 및 블로킹 문제 발생</p></li><li><p>참조: 비동기 프로그래밍 원칙</p></li></ul></li><li><p><strong>RULE-PERF-007</strong> (MUST NOT): 무제한 메모리 할당을 사용해서는 안 된다</p><ul><li><p>적용 범위: 모든 데이터 처리</p></li><li><p>근거: 메모리 부족 및 시스템 불안정성 방지</p></li><li><p>참조: 메모리 관리 모범 사례</p></li></ul></li></ul><h2>3. 기술 스펙</h2><h3>3.1 성능 아키텍처 (Mermaid)</h3><ac:structured-macro ac:name="confluence-mermaid-macro" ac:schema-version="1" data-layout="default" ac:local-id="79d4c732-a29b-4749-bf1c-878633f6cb6a" ac:macro-id="1ee3b771-3395-45cc-9ab1-a1d3c0804fc6"><ac:parameter ac:name="panZoom" /><ac:parameter ac:name="zoom" /><ac:parameter ac:name="look">classic</ac:parameter><ac:parameter ac:name="download" /><ac:parameter ac:name="searchText">graph TB subgraph Client Layer MCP Client Request Queue Load Balancer end subgraph API Gateway Layer Rate Limiter Request Throttler Connection Pool end subgraph SpecGate Server Layer Async Task Queue Worker Pool Memory Manager Cache Layer end subgraph Processing Layer Document Parser Stream Processor Batch Processor Result Aggregator end subgraph Storage Layer Redis Cache Memory Cache Disk Cache end subgraph External Services Confluence API Connection Pool GitHub API Connection Pool end</ac:parameter><ac:parameter ac:name="fullscreen" /><ac:parameter ac:name="theme">default</ac:parameter><ac:parameter ac:name="disableUseMaxWidth" /><ac:parameter ac:name="copy" /><ac:parameter ac:name="alignment">left</ac:parameter><ac:parameter ac:name="exportWidth" /><ac:parameter ac:name="height" /><ac:plain-text-body><![CDATA[[{"body":"graph TB\n    subgraph \"Client Layer\"\n        A[MCP Client] --> B[Request Queue]\n        B --> C[Load Balancer]\n    end\n    \n    subgraph \"API Gateway Layer\"\n        D[Rate Limiter] --> E[Request Throttler]\n        E --> F[Connection Pool]\n    end\n    \n    subgraph \"SpecGate Server Layer\"\n        G[Async Task Queue] --> H[Worker Pool]\n        H --> I[Memory Manager]\n        I --> J[Cache Layer]\n    end\n    \n    subgraph \"Processing Layer\"\n        K[Document Parser] --> L[Stream Processor]\n        L --> M[Batch Processor]\n        M --> N[Result Aggregator]\n    end\n    \n    subgraph \"Storage Layer\"\n        O[Redis Cache] --> P[Memory Cache]\n        P --> Q[Disk Cache]\n    end\n    \n    subgraph \"External Services\"\n        R[Confluence API] --> S[Connection Pool]\n        T[GitHub API] --> U[Connection Pool]\n    end\n    \n    A --> D\n    D --> G\n    G --> K\n    K --> O\n    G --> R\n    G --> T","date":1758265446937}]]]></ac:plain-text-body></ac:structured-macro><h3>3.2 성능 지표 및 목표</h3><ac:structured-macro ac:name="code" ac:schema-version="1" ac:macro-id="c04da05f-3135-4328-b251-bd842bb0d61f"><ac:parameter ac:name="breakoutMode">wide</ac:parameter><ac:parameter ac:name="breakoutWidth">760</ac:parameter><ac:plain-text-body><![CDATA[# 성능 목표
+# SpecGate 성능 설계서
+
+## 1. 개요
+- **목적**: SpecGate 시스템의 성능 최적화 및 확장성 설계
+- **배경**: 대용량 설계 문서 처리 및 실시간 CI 게이트 처리를 위한 성능 최적화 필요
+- **참고사항**: 비동기 처리, 캐싱 전략, 메모리 최적화 적용
+
+## 2. 설계 규칙 (Design Rules)
+### 2.1 MUST 규칙 (필수)
+- **RULE-PERF-001** (MUST): 모든 I/O 작업은 비동기로 처리해야 한다
+  - 적용 범위: Confluence API 호출, 파일 읽기/쓰기, 네트워크 통신
+  - 근거: 동시 처리 성능 향상 및 리소스 효율성 극대화
+  - 참조: Python asyncio 모범 사례
+
+- **RULE-PERF-002** (MUST): 모든 외부 API 호출은 적절한 타임아웃을 설정해야 한다
+  - 적용 범위: Confluence API, GitHub API 등 모든 외부 서비스 호출
+  - 근거: 무한 대기 방지 및 시스템 안정성 보장
+  - 참조: API 설계 모범 사례
+
+- **RULE-PERF-003** (MUST): 메모리 사용량은 1GB를 초과해서는 안 된다
+  - 적용 범위: 모든 Phase의 메모리 사용
+  - 근거: 시스템 안정성 및 확장성 보장
+  - 참조: Python 메모리 관리 가이드
+
+### 2.2 SHOULD 규칙 (권장)
+- **RULE-PERF-004** (SHOULD): 반복적인 작업은 캐싱을 활용해야 한다
+  - 적용 범위: Confluence 문서 조회, 품질 검사 결과, 변환 결과
+  - 근거: 응답 시간 단축 및 외부 API 호출 최소화
+  - 참조: 캐싱 전략 모범 사례
+
+- **RULE-PERF-005** (SHOULD): 대용량 문서는 스트리밍으로 처리해야 한다
+  - 적용 범위: HTML→MD 변환, 규칙 추출, 품질 검사
+  - 근거: 메모리 사용량 최적화 및 처리 성능 향상
+  - 참조: 스트리밍 처리 패턴
+
+### 2.3 금지 규칙 (Prohibited)
+- **RULE-PERF-006** (MUST NOT): 동기 I/O 작업을 사용해서는 안 된다
+  - 적용 범위: 모든 I/O 작업
+  - 근거: 성능 저하 및 블로킹 문제 발생
+  - 참조: 비동기 프로그래밍 원칙
+
+- **RULE-PERF-007** (MUST NOT): 무제한 메모리 할당을 사용해서는 안 된다
+  - 적용 범위: 모든 데이터 처리
+  - 근거: 메모리 부족 및 시스템 불안정성 방지
+  - 참조: 메모리 관리 모범 사례
+
+## 3. 기술 스펙
+### 3.1 성능 아키텍처 (Mermaid)
+```mermaid
+graph TB
+    subgraph "Client Layer"
+        A[MCP Client] --> B[Request Queue]
+        B --> C[Load Balancer]
+    end
+    
+    subgraph "API Gateway Layer"
+        D[Rate Limiter] --> E[Request Throttler]
+        E --> F[Connection Pool]
+    end
+    
+    subgraph "SpecGate Server Layer"
+        G[Async Task Queue] --> H[Worker Pool]
+        H --> I[Memory Manager]
+        I --> J[Cache Layer]
+    end
+    
+    subgraph "Processing Layer"
+        K[Document Parser] --> L[Stream Processor]
+        L --> M[Batch Processor]
+        M --> N[Result Aggregator]
+    end
+    
+    subgraph "Storage Layer"
+        O[Redis Cache] --> P[Memory Cache]
+        P --> Q[Disk Cache]
+    end
+    
+    subgraph "External Services"
+        R[Confluence API] --> S[Connection Pool]
+        T[GitHub API] --> U[Connection Pool]
+    end
+    
+    A --> D
+    D --> G
+    G --> K
+    K --> O
+    G --> R
+    G --> T
+```
+
+### 3.2 성능 지표 및 목표
+```yaml
+# 성능 목표
 performance_targets:
   response_time:
     confluence_fetch: "< 5초"
@@ -25,7 +117,11 @@ performance_targets:
     max_document_size: "10MB"
     max_documents_per_request: "100"
     cache_hit_ratio: "> 80%"
-]]></ac:plain-text-body></ac:structured-macro><h3>3.3 비동기 처리 최적화</h3><ac:structured-macro ac:name="code" ac:schema-version="1" ac:macro-id="14f5e915-ec91-48f9-9c81-4dac08c655cc"><ac:parameter ac:name="breakoutMode">wide</ac:parameter><ac:parameter ac:name="breakoutWidth">760</ac:parameter><ac:plain-text-body><![CDATA[import asyncio
+```
+
+### 3.3 비동기 처리 최적화
+```python
+import asyncio
 import aiohttp
 from typing import List, Dict, Any
 from concurrent.futures import ThreadPoolExecutor
@@ -112,7 +208,11 @@ class PerformanceMonitor:
         if operation not in self.metrics:
             return 0.0
         return self.metrics[operation]
-]]></ac:plain-text-body></ac:structured-macro><h3>3.4 캐싱 전략</h3><ac:structured-macro ac:name="code" ac:schema-version="1" ac:macro-id="8654f772-6418-4324-894b-09277f7c093b"><ac:parameter ac:name="breakoutMode">wide</ac:parameter><ac:parameter ac:name="breakoutWidth">760</ac:parameter><ac:plain-text-body><![CDATA[import redis
+```
+
+### 3.4 캐싱 전략
+```python
+import redis
 import json
 import hashlib
 from typing import Any, Optional
@@ -206,7 +306,11 @@ class CacheManager:
                 k: v for k, v in self.memory_cache.items() 
                 if not k.startswith(f"{cache_type}:")
             }
-]]></ac:plain-text-body></ac:structured-macro><h3>3.5 메모리 최적화</h3><ac:structured-macro ac:name="code" ac:schema-version="1" ac:macro-id="b0d4e833-a1d2-4d15-9a30-a63d10eb4f66"><ac:parameter ac:name="breakoutMode">wide</ac:parameter><ac:parameter ac:name="breakoutWidth">760</ac:parameter><ac:plain-text-body><![CDATA[import gc
+```
+
+### 3.5 메모리 최적화
+```python
+import gc
 import psutil
 import sys
 from typing import Generator, Any
@@ -275,7 +379,12 @@ class MemoryManager:
             "freed_mb": freed_memory,
             "current_usage_percent": (after_usage / self.max_memory_mb) * 100
         }
-]]></ac:plain-text-body></ac:structured-macro><h2>4. 구현 가이드</h2><h3>4.1 성능 테스트</h3><ac:structured-macro ac:name="code" ac:schema-version="1" ac:macro-id="a8c5088c-989f-4844-ad62-d57f05c0dd14"><ac:parameter ac:name="breakoutMode">wide</ac:parameter><ac:parameter ac:name="breakoutWidth">760</ac:parameter><ac:plain-text-body><![CDATA[import pytest
+```
+
+## 4. 구현 가이드
+### 4.1 성능 테스트
+```python
+import pytest
 import asyncio
 import time
 from unittest.mock import Mock, patch
@@ -324,7 +433,11 @@ class TestPerformance:
         # 캐시 조회
         cached_result = cache_manager.get_cached_result("test", {"id": 1})
         assert cached_result == test_data
-]]></ac:plain-text-body></ac:structured-macro><h3>4.2 성능 모니터링</h3><ac:structured-macro ac:name="code" ac:schema-version="1" ac:macro-id="dfaf92f3-d2cf-435b-b8d8-77f9ec319610"><ac:parameter ac:name="breakoutMode">wide</ac:parameter><ac:parameter ac:name="breakoutWidth">760</ac:parameter><ac:plain-text-body><![CDATA[import logging
+```
+
+### 4.2 성능 모니터링
+```python
+import logging
 from typing import Dict, Any
 
 class PerformanceLogger:
@@ -364,7 +477,11 @@ class PerformanceLogger:
                 f"Slow operation detected: {operation} took {duration:.2f}s "
                 f"(threshold: {threshold}s)"
             )
-]]></ac:plain-text-body></ac:structured-macro><h3>4.3 성능 최적화 체크리스트</h3><ac:structured-macro ac:name="code" ac:schema-version="1" ac:macro-id="df5fdd10-9628-4803-bc1f-0f25ad0dbbd3"><ac:parameter ac:name="breakoutMode">wide</ac:parameter><ac:parameter ac:name="breakoutWidth">760</ac:parameter><ac:plain-text-body><![CDATA[# 성능 최적화 체크리스트
+```
+
+### 4.3 성능 최적화 체크리스트
+```yaml
+# 성능 최적화 체크리스트
 performance_checklist:
   async_processing:
     - [ ] 모든 I/O 작업이 비동기로 구현됨
@@ -395,4 +512,7 @@ performance_checklist:
     - [ ] 느린 작업이 감지됨
     - [ ] 리소스 사용량이 모니터링됨
     - [ ] 알림이 설정됨
-]]></ac:plain-text-body></ac:structured-macro><h2>5. 변경 이력</h2><table data-table-width="760" data-layout="default" ac:local-id="8f26552a-c835-40d3-89ae-a1f7d52b3942"><tbody><tr><th><p>버전</p></th><th><p>날짜</p></th><th><p>변경내용</p></th><th><p>작성자</p></th></tr><tr><td><p>1.0</p></td><td><p>2024-01-15</p></td><td><p>초기 성능 설계서 작성</p></td><td><p>SpecGate Team</p></td></tr></tbody></table>
+```
+
+
+

@@ -29,18 +29,26 @@ class DocumentStructureAnalyzer:
         self.logger = logging.getLogger("specgate.speclint.analyzer")
         
         # 정규식 패턴 미리 컴파일 (성능 최적화)
+        # 제목 패턴을 더 유연하게 허용
+        self.title_patterns = [
+            r'^#\s*\[[^\]]+\]\s*(\[[^\]]+\]|\w+)\s*설계서\s*$',  # [프로젝트] [유형] 설계서
+            r'^#\s*\[[^\]]+\]\s*[A-Za-z가-힣\s]+\s*설계서\s*$',  # [프로젝트] API 설계서
+            r'^#\s*[A-Za-z가-힣\s]+\s*설계서\s*$'  # SpecGate API 설계서
+        ]
+        
         self._compiled_patterns = {
-            'title_format': re.compile(self.checks['title_format']['pattern'], re.MULTILINE),
+            'title_format': [re.compile(pattern, re.MULTILINE) for pattern in self.title_patterns],
             'design_rules_section': re.compile(self.checks['design_rules_section']['pattern'], re.IGNORECASE),
             'technical_spec_section': re.compile(self.checks['technical_spec_section']['pattern'], re.IGNORECASE),
             'rule_format': re.compile(self.checks['rule_format']['pattern'])
         }
     
-    async def analyze(self, content: str) -> Dict[str, Any]:
+    async def analyze(self, content: str, document_title: Optional[str] = None) -> Dict[str, Any]:
         """문서 구조를 분석하고 점수를 계산한다.
         
         Args:
             content: 분석할 문서 내용
+            document_title: Confluence 문서의 실제 제목 (선택사항)
             
         Returns:
             Dict[str, Any]: 구조 분석 결과
@@ -50,8 +58,8 @@ class DocumentStructureAnalyzer:
             return self._create_empty_result()
         
         try:
-            # 제목 형식 검사
-            title_result = self._check_title_format(content)
+            # 제목 형식 검사 (Confluence 제목 우선 사용)
+            title_result = self._check_title_format(content, document_title)
             
             # 설계 규칙 섹션 검사
             design_rules_result = self._check_design_rules_section(content)
@@ -68,7 +76,7 @@ class DocumentStructureAnalyzer:
             
             # 구조 점수 계산
             structure_score = self._calculate_structure_score(
-                title_result, design_rules_result, technical_spec_result, rule_count
+                title_result, design_rules_result, technical_spec_result, rule_count, content
             )
             
             result = {
@@ -124,26 +132,61 @@ class DocumentStructureAnalyzer:
             "error": error_message
         }
     
-    def _check_title_format(self, content: str) -> Dict[str, Any]:
+    def _check_title_format(self, content: str, document_title: Optional[str] = None) -> Dict[str, Any]:
         """제목 형식 검사
         
         Args:
             content: 문서 내용
+            document_title: Confluence 문서의 실제 제목 (선택사항)
             
         Returns:
             Dict[str, Any]: 제목 형식 검사 결과
         """
         try:
-            pattern = self._compiled_patterns['title_format']
-            match = pattern.search(content)
-            
-            return {
-                "valid": bool(match),
-                "pattern": self.checks['title_format']['pattern'],
-                "description": self.checks['title_format']['description'],
-                "match": match.group() if match else None,
-                "weight": self.checks['title_format']['weight']
-            }
+            # Confluence 문서 제목이 있으면 우선 사용
+            if document_title:
+                self.logger.info(f"Confluence 문서 제목으로 검사: {document_title}")
+                # Confluence 제목을 Markdown 형식으로 변환하여 검사
+                confluence_title = f"# {document_title}"
+                
+                patterns = self._compiled_patterns['title_format']
+                match = None
+                matched_pattern = None
+                
+                for i, pattern in enumerate(patterns):
+                    match = pattern.search(confluence_title)
+                    if match:
+                        matched_pattern = self.title_patterns[i]
+                        break
+                
+                return {
+                    "valid": bool(match),
+                    "pattern": matched_pattern or self.checks['title_format']['pattern'],
+                    "description": self.checks['title_format']['description'],
+                    "match": match.group() if match else confluence_title,
+                    "weight": self.checks['title_format']['weight'],
+                    "source": "confluence_title"
+                }
+            else:
+                # 기존 방식: Markdown 내용에서 제목 검색
+                patterns = self._compiled_patterns['title_format']
+                match = None
+                matched_pattern = None
+                
+                for i, pattern in enumerate(patterns):
+                    match = pattern.search(content)
+                    if match:
+                        matched_pattern = self.title_patterns[i]
+                        break
+                
+                return {
+                    "valid": bool(match),
+                    "pattern": matched_pattern or self.checks['title_format']['pattern'],
+                    "description": self.checks['title_format']['description'],
+                    "match": match.group() if match else None,
+                    "weight": self.checks['title_format']['weight'],
+                    "source": "markdown_content"
+                }
         except Exception as e:
             self.logger.error(f"제목 형식 검사 중 오류: {e}")
             return {
@@ -236,7 +279,7 @@ class DocumentStructureAnalyzer:
     def _calculate_structure_score(self, title_result: Dict[str, Any], 
                                  design_rules_result: Dict[str, Any],
                                  technical_spec_result: Dict[str, Any],
-                                 rule_count: int) -> int:
+                                 rule_count: int, content: str) -> int:
         """구조 점수 계산
         
         Args:
@@ -263,10 +306,24 @@ class DocumentStructureAnalyzer:
             if technical_spec_result.get("valid", False):
                 score += technical_spec_result.get("weight", 0)
             
-            # 규칙 개수 점수 (규칙당 3점, 최대 30점)
-            if rule_count > 0:
-                rule_score = min(rule_count * self.checks['rule_format']['weight'], 30)
-                score += rule_score
+            # 규칙 개수 점수 (10점)
+            if rule_count >= 5:  # 최소 5개 규칙 이상
+                rule_score = 10  # 고정 점수
+            elif rule_count > 0:
+                rule_score = rule_count * 2  # 부족하면 개수에 비례 (최대 8점)
+            else:
+                rule_score = 0  # 규칙이 없으면 0점
+            
+            score += rule_score
+            
+            # 코드 블록 존재 점수 (10점)
+            code_blocks = self._count_code_blocks(content)
+            if code_blocks > 0:
+                score += 10
+            
+            # 변경 이력 존재 점수 (5점)
+            if self._has_change_history(content):
+                score += 5
             
             final_score = min(score, 100)  # 최대 100점
             self.logger.debug(f"구조 점수 계산: {final_score} (기본: {score})")
@@ -275,5 +332,57 @@ class DocumentStructureAnalyzer:
         except Exception as e:
             self.logger.error(f"구조 점수 계산 중 오류: {e}")
             return 0
+    
+    def _count_code_blocks(self, content: str) -> int:
+        """코드 블록 개수 계산"""
+        try:
+            # 다양한 코드 블록 패턴 검사
+            code_patterns = [
+                r'```[\s\S]*?```',  # 기본 코드 블록
+                r'```python[\s\S]*?```',  # Python 코드 블록
+                r'```javascript[\s\S]*?```',  # JavaScript 코드 블록
+                r'```json[\s\S]*?```',  # JSON 코드 블록
+                r'```yaml[\s\S]*?```',  # YAML 코드 블록
+                r'```xml[\s\S]*?```',  # XML 코드 블록
+                r'```sql[\s\S]*?```',  # SQL 코드 블록
+                r'```bash[\s\S]*?```',  # Bash 코드 블록
+                r'```shell[\s\S]*?```',  # Shell 코드 블록
+            ]
+            
+            total_blocks = 0
+            for pattern in code_patterns:
+                matches = re.findall(pattern, content, re.MULTILINE | re.DOTALL)
+                total_blocks += len(matches)
+            
+            self.logger.debug(f"발견된 코드 블록 개수: {total_blocks}")
+            return total_blocks
+            
+        except Exception as e:
+            self.logger.error(f"코드 블록 계산 중 오류: {e}")
+            return 0
+    
+    def _has_change_history(self, content: str) -> bool:
+        """변경 이력 섹션 존재 여부 확인"""
+        try:
+            # 변경 이력 섹션 패턴들
+            change_history_patterns = [
+                r'##\s*[0-9]+\.\s*변경\s*이력',
+                r'##\s*[0-9]+\.\s*changelog',
+                r'##\s*[0-9]+\.\s*version',
+                r'##\s*[0-9]+\.\s*history',
+                r'##\s*[0-9]+\.\s*revision'
+            ]
+            
+            for pattern in change_history_patterns:
+                if re.search(pattern, content, re.IGNORECASE):
+                    self.logger.debug("변경 이력 섹션 발견")
+                    return True
+            
+            self.logger.debug("변경 이력 섹션 없음")
+            return False
+            
+        except Exception as e:
+            self.logger.error(f"변경 이력 검사 중 오류: {e}")
+            return False
 
 

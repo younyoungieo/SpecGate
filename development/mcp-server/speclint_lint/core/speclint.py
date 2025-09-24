@@ -37,12 +37,13 @@ class SpecLint:
         
         self.logger.info("SpecLint 인스턴스 초기화 완료")
     
-    async def lint(self, content: str, check_type: str = "full") -> Dict[str, Any]:
+    async def lint(self, content: str, check_type: str = "full", document_title: Optional[str] = None) -> Dict[str, Any]:
         """문서 품질 검사 실행
         
         Args:
             content: 검사할 문서 내용
             check_type: 검사 유형 ("full", "basic", "structure")
+            document_title: Confluence 문서의 실제 제목 (선택사항)
             
         Returns:
             Dict[str, Any]: 품질 검사 결과
@@ -66,7 +67,7 @@ class SpecLint:
             
             # 1단계: 문서 구조 분석
             self.logger.info("1단계: 문서 구조 분석 중...")
-            structure_analysis = await self.analyzer.analyze(content)
+            structure_analysis = await self.analyzer.analyze(content, document_title)
             
             # 2단계: 템플릿 준수 검사
             self.logger.info("2단계: 템플릿 준수 검사 중...")
@@ -156,7 +157,7 @@ class SpecLint:
                 
                 self.logger.info(f"문서 {i}/{len(documents)} 처리 중: {doc_title}")
                 
-                result = await self.lint(content, check_type)
+                result = await self.lint(content, check_type, doc_title)
                 result['document_id'] = doc_id
                 result['title'] = doc_title
                 

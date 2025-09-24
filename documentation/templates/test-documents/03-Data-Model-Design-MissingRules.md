@@ -1,4 +1,79 @@
-<h2>1. 개요</h2><ul><li><p><strong>목적</strong>: SpecGate 시스템의 표준화된 데이터 구조 및 스키마 정의</p></li><li><p><strong>배경</strong>: Phase 간 데이터 전달 및 DesignRuleSpec 생성을 위한 일관된 데이터 모델 필요</p></li><li><p><strong>참고사항</strong>: JSON Schema 기반, Pydantic 모델 활용, MCP 표준 준수</p></li></ul><h2>2. 설계 규칙 (Design Rules)</h2><h3>2.1 MUST 규칙 (필수)</h3><ul><li><p><strong>RULE-DATA-001</strong> (MUST): 모든 데이터 모델은 JSON Schema로 정의해야 한다</p><ul><li><p>적용 범위: 모든 데이터 구조 (DocumentData, RuleData, DesignRuleSpec 등)</p></li><li><p>근거: 데이터 검증 및 직렬화/역직렬화 표준화</p></li><li><p>참조: JSON Schema 표준 (Draft 7)</p></li></ul></li><li><p><strong>RULE-DATA-002</strong> (MUST): 모든 데이터 모델은 Pydantic BaseModel을 상속해야 한다</p><ul><li><p>적용 범위: 모든 Python 데이터 클래스</p></li><li><p>근거: 타입 안전성 보장 및 자동 검증</p></li><li><p>참조: Pydantic v2 공식 문서</p></li></ul></li><li><p><strong>RULE-DATA-003</strong> (MUST): 모든 데이터 모델은 버전 관리가 가능해야 한다</p><ul><li><p>적용 범위: 모든 데이터 구조</p></li><li><p>근거: 하위 호환성 보장 및 스키마 진화 지원</p></li><li><p>참조: API 버전 관리 모범 사례</p></li></ul></li></ul><h3>2.2 SHOULD 규칙 (권장)</h3><ul><li><p><strong>RULE-DATA-004</strong> (SHOULD): 모든 데이터 모델은 메타데이터를 포함해야 한다</p><ul><li><p>적용 범위: 모든 데이터 구조</p></li><li><p>근거: 추적성 및 디버깅 효율성 향상</p></li><li><p>참조: 데이터 거버넌스 모범 사례</p></li></ul></li><li><p><strong>RULE-DATA-005</strong> (SHOULD): 모든 데이터 모델은 검증 규칙을 포함해야 한다</p><ul><li><p>적용 범위: 모든 데이터 구조</p></li><li><p>근거: 데이터 품질 보장 및 오류 방지</p></li><li><p>참조: 데이터 검증 모범 사례</p></li></ul></li></ul><h3>2.3 금지 규칙 (Prohibited)</h3><ul><li><p><strong>RULE-DATA-006</strong> (MUST NOT): 순환 참조를 가진 데이터 모델을 사용해서는 안 된다</p><ul><li><p>적용 범위: 모든 데이터 구조</p></li><li><p>근거: 직렬화 오류 및 성능 문제 방지</p></li><li><p>참조: 객체 지향 설계 원칙</p></li></ul></li><li><p><strong>RULE-DATA-007</strong> (MUST NOT): 하드코딩된 비즈니스 로직을 데이터 모델에 포함해서는 안 된다</p><ul><li><p>적용 범위: 모든 데이터 클래스</p></li><li><p>근거: 관심사 분리 및 유지보수성 향상</p></li><li><p>참조: Clean Architecture 설계 원칙</p></li></ul></li></ul><h2>3. 기술 스펙</h2><h3>3.1 데이터 모델 (ERD)</h3><ac:structured-macro ac:name="confluence-mermaid-macro" ac:schema-version="1" data-layout="default" ac:local-id="3d40be14-8ccb-4013-9f22-cc105e7fad91" ac:macro-id="436a96f1-4a57-46f2-bd77-aa303e217066"><ac:parameter ac:name="panZoom" /><ac:parameter ac:name="zoom" /><ac:parameter ac:name="look">classic</ac:parameter><ac:parameter ac:name="download" /><ac:parameter ac:name="searchText">erDiagram DocumentData string id PK string title string content string html_content string markdown_content string space_key string space_name string url array labels string created_at string updated_at object metadata QualityScore integer score array violations array suggestions string check_type object metadata string timestamp DesignRule string rule_id PK string area integer number string rule_type string description string scope string reason string reference object metadata DesignRuleSpec string spec_id PK string project_name string document_type array must_rules array should_rules array must_not_rules object technical_specs object rule_spec_relations object metadata ConversionResult string markdown object metadata object conversion_info string timestamp DocumentData QualityScore has DocumentData ConversionResult converts_to DocumentData DesignRule contains DesignRule DesignRuleSpec belongs_to QualityScore DesignRuleSpec validates</ac:parameter><ac:parameter ac:name="fullscreen" /><ac:parameter ac:name="theme">default</ac:parameter><ac:parameter ac:name="disableUseMaxWidth" /><ac:parameter ac:name="copy" /><ac:parameter ac:name="alignment">left</ac:parameter><ac:parameter ac:name="exportWidth" /><ac:parameter ac:name="height" /><ac:plain-text-body><![CDATA[[{"body":"erDiagram\n    DocumentData {\n        string id PK\n        string title\n        string content\n        string html_content\n        string markdown_content\n        string space_key\n        string space_name\n        string url\n        array labels\n        string created_at\n        string updated_at\n        object metadata\n    }\n    \n    QualityScore {\n        integer score\n        array violations\n        array suggestions\n        string check_type\n        object metadata\n        string timestamp\n    }\n    \n    DesignRule {\n        string rule_id PK\n        string area\n        integer number\n        string rule_type\n        string description\n        string scope\n        string reason\n        string reference\n        object metadata\n    }\n    \n    DesignRuleSpec {\n        string spec_id PK\n        string project_name\n        string document_type\n        array must_rules\n        array should_rules\n        array must_not_rules\n        object technical_specs\n        object rule_spec_relations\n        object metadata\n    }\n    \n    ConversionResult {\n        string markdown\n        object metadata\n        object conversion_info\n        string timestamp\n    }\n    \n    DocumentData ||--o{ QualityScore : \"has\"\n    DocumentData ||--o{ ConversionResult : \"converts_to\"\n    DocumentData ||--o{ DesignRule : \"contains\"\n    DesignRule ||--o{ DesignRuleSpec : \"belongs_to\"\n    QualityScore ||--o{ DesignRuleSpec : \"validates\"","date":1758265389889}]]]></ac:plain-text-body></ac:structured-macro><h3>3.2 JSON Schema 정의</h3><ac:structured-macro ac:name="code" ac:schema-version="1" ac:macro-id="2de59b2b-78c3-4fb8-84db-c8c6a5a9e463"><ac:parameter ac:name="breakoutMode">wide</ac:parameter><ac:parameter ac:name="breakoutWidth">760</ac:parameter><ac:plain-text-body><![CDATA[{
+# SpecGate 데이터 모델 설계서
+
+## 1. 개요
+- **목적**: SpecGate 시스템의 표준화된 데이터 구조 및 스키마 정의
+- **배경**: Phase 간 데이터 전달 및 DesignRuleSpec 생성을 위한 일관된 데이터 모델 필요
+- **참고사항**: JSON Schema 기반, Pydantic 모델 활용, MCP 표준 준수
+
+## 2. 기술 스펙
+### 3.1 데이터 모델 (ERD)
+```mermaid
+erDiagram
+    DocumentData {
+        string id PK
+        string title
+        string content
+        string html_content
+        string markdown_content
+        string space_key
+        string space_name
+        string url
+        array labels
+        string created_at
+        string updated_at
+        object metadata
+    }
+    
+    QualityScore {
+        integer score
+        array violations
+        array suggestions
+        string check_type
+        object metadata
+        string timestamp
+    }
+    
+    DesignRule {
+        string rule_id PK
+        string area
+        integer number
+        string rule_type
+        string description
+        string scope
+        string reason
+        string reference
+        object metadata
+    }
+    
+    DesignRuleSpec {
+        string spec_id PK
+        string project_name
+        string document_type
+        array must_rules
+        array should_rules
+        array must_not_rules
+        object technical_specs
+        object rule_spec_relations
+        object metadata
+    }
+    
+    ConversionResult {
+        string markdown
+        object metadata
+        object conversion_info
+        string timestamp
+    }
+    
+    DocumentData ||--o{ QualityScore : "has"
+    DocumentData ||--o{ ConversionResult : "converts_to"
+    DocumentData ||--o{ DesignRule : "contains"
+    DesignRule ||--o{ DesignRuleSpec : "belongs_to"
+    QualityScore ||--o{ DesignRuleSpec : "validates"
+```
+
+### 3.2 JSON Schema 정의
+```json
+{
   "$schema": "http://json-schema.org/draft-07/schema#",
   "definitions": {
     "DocumentData": {
@@ -96,7 +171,11 @@
     }
   }
 }
-]]></ac:plain-text-body></ac:structured-macro><h3>3.3 Pydantic 모델 정의</h3><ac:structured-macro ac:name="code" ac:schema-version="1" ac:macro-id="152ff04b-abc4-47bc-ac2d-d7dba29be61a"><ac:parameter ac:name="breakoutMode">wide</ac:parameter><ac:parameter ac:name="breakoutWidth">760</ac:parameter><ac:plain-text-body><![CDATA[from pydantic import BaseModel, Field, validator
+```
+
+### 3.3 Pydantic 모델 정의
+```python
+from pydantic import BaseModel, Field, validator
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 from enum import Enum
@@ -200,7 +279,12 @@ class ConversionResult(BaseModel):
     metadata: Dict[str, Any] = Field(default_factory=dict)
     conversion_info: Dict[str, Any] = Field(default_factory=dict)
     timestamp: datetime = Field(default_factory=datetime.now)
-]]></ac:plain-text-body></ac:structured-macro><h2>4. 구현 가이드</h2><h3>4.1 데이터 변환 유틸리티</h3><ac:structured-macro ac:name="code" ac:schema-version="1" ac:macro-id="06c37c76-0831-4441-9fde-f96d61efbc37"><ac:parameter ac:name="breakoutMode">wide</ac:parameter><ac:parameter ac:name="breakoutWidth">760</ac:parameter><ac:plain-text-body><![CDATA[from typing import Type, TypeVar
+```
+
+## 4. 구현 가이드
+### 4.1 데이터 변환 유틸리티
+```python
+from typing import Type, TypeVar
 import json
 
 T = TypeVar('T', bound=BaseModel)
@@ -235,7 +319,11 @@ class DataConverter:
             return True
         except Exception:
             return False
-]]></ac:plain-text-body></ac:structured-macro><h3>4.2 데이터 직렬화/역직렬화</h3><ac:structured-macro ac:name="code" ac:schema-version="1" ac:macro-id="ec224c0d-8068-41d3-9114-97dbeeb80813"><ac:parameter ac:name="breakoutMode">wide</ac:parameter><ac:parameter ac:name="breakoutWidth">760</ac:parameter><ac:plain-text-body><![CDATA[import json
+```
+
+### 4.2 데이터 직렬화/역직렬화
+```python
+import json
 from datetime import datetime
 from typing import Any
 
@@ -262,7 +350,11 @@ class DataSerializer:
         """JSON을 Pydantic 모델로 역직렬화"""
         data = json.loads(json_str)
         return model_class(**data)
-]]></ac:plain-text-body></ac:structured-macro><h3>4.3 데이터 검증 규칙</h3><ac:structured-macro ac:name="code" ac:schema-version="1" ac:macro-id="bbe89b4c-3476-4d43-ad67-d1f47add2561"><ac:parameter ac:name="breakoutMode">wide</ac:parameter><ac:parameter ac:name="breakoutWidth">760</ac:parameter><ac:plain-text-body><![CDATA[from pydantic import ValidationError
+```
+
+### 4.3 데이터 검증 규칙
+```python
+from pydantic import ValidationError
 
 class DataValidator:
     @staticmethod
@@ -297,7 +389,11 @@ class DataValidator:
         import re
         pattern = r'^RULE-[A-Z]+-[0-9]+$'
         return bool(re.match(pattern, rule_id))
-]]></ac:plain-text-body></ac:structured-macro><h3>4.4 테스트 케이스</h3><ac:structured-macro ac:name="code" ac:schema-version="1" ac:macro-id="ecf3e372-2936-47ae-a3f1-8a9f9449ff42"><ac:parameter ac:name="breakoutMode">wide</ac:parameter><ac:parameter ac:name="breakoutWidth">760</ac:parameter><ac:plain-text-body><![CDATA[import pytest
+```
+
+### 4.4 테스트 케이스
+```python
+import pytest
 from datetime import datetime
 
 class TestDataModels:
@@ -338,4 +434,9 @@ class TestDataModels:
         )
         assert score.score == 85
         assert score.check_type == CheckType.FULL
-]]></ac:plain-text-body></ac:structured-macro><h2>5. 변경 이력</h2><table data-table-width="760" data-layout="default" ac:local-id="528c8a63-863d-4b5d-ac8b-2d38c3e737b1"><tbody><tr><th><p>버전</p></th><th><p>날짜</p></th><th><p>변경내용</p></th><th><p>작성자</p></th></tr><tr><td><p>1.0</p></td><td><p>2024-01-15</p></td><td><p>초기 데이터 모델 설계서 작성</p></td><td><p>SpecGate Team</p></td></tr></tbody></table>
+```
+
+## 5. 변경 이력
+| 버전 | 날짜 | 변경내용 | 작성자 |
+|------|------|----------|--------|
+| 1.0 | 2024-01-15 | 초기 데이터 모델 설계서 작성 | SpecGate Team |

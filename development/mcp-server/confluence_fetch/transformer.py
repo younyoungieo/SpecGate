@@ -78,7 +78,7 @@ class ConfluenceDataTransformer:
     
     def _convert_html_to_markdown(self, result: Dict[str, Any]) -> str:
         """HTML을 Markdown으로 변환"""
-        from ..html_to_md.converter import HTMLToMarkdownConverter
+        from html_to_md.converter import HTMLToMarkdownConverter
         
         content = result.get("body", {}).get("storage", {}).get("value", "")
         if not content:
@@ -91,15 +91,24 @@ class ConfluenceDataTransformer:
         
         # 비동기 함수를 동기적으로 호출
         import asyncio
+        
+        # 이미 실행 중인 이벤트 루프가 있는지 확인
         try:
-            loop = asyncio.get_event_loop()
+            # 실행 중인 이벤트 루프가 있으면 새 태스크로 실행
+            loop = asyncio.get_running_loop()
+            # 이 경우 동기적으로 실행할 수 없으므로 None 반환
+            self.logger.warning("이벤트 루프가 이미 실행 중입니다. HTML to Markdown 변환을 건너뜁니다.")
+            return None
         except RuntimeError:
+            # 실행 중인 이벤트 루프가 없으면 새로 생성
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-        
-        conversion_result = loop.run_until_complete(
-            converter.convert(content, document_title=document_title)
-        )
+            try:
+                conversion_result = loop.run_until_complete(
+                    converter.convert(content, document_title=document_title)
+                )
+            finally:
+                loop.close()
         
         if conversion_result and "markdown" in conversion_result:
             self.logger.info(f"HTML to Markdown 변환기 사용됨 - 제목: {document_title}")

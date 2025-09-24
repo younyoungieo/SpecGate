@@ -64,68 +64,70 @@ SpecGate MCP Server에 연결된 도구들을 보여줘
 - 3개 도구 등록 확인: `confluence_fetch`, `speclint_lint`, `html_to_md`
 - 서버 이름: "SpecGate Server 🚀"
 
-### 2단계: Confluence 문서 수집
-**목표**: 실제 Confluence에서 설계 문서를 수집하고 HTML 원본 저장
+### 2단계: 자동 파이프라인 실행 (테스트 문서 활용)
+**목표**: 로컬 테스트 문서들로 자동 파이프라인 전체 과정 시연
 
 **데모 방법**:
-Cursor IDE 채팅에서 다음 프롬프트를 순서대로 입력:
+Cursor IDE 채팅에서 다음 프롬프트 입력:
 
 ```
-1. Confluence에서 "design" 라벨이 붙은 문서 3개를 수집해줘.
+documentation/templates/test-documents/ 폴더의 모든 테스트 문서들을 품질 검사해줘.
+```
+
+**예상 결과** (자동으로 순차 실행):
+1. **5개 테스트 문서 품질 검사 완료**:
+   - **01-API-Design-Perfect.md**: 95점 (자동승인) ✅
+   - **02-Architecture-Design-TitleError.md**: 75점 (HITL 검토 필요) ⚠️
+   - **03-Data-Model-Design-MissingRules.md**: 65점 (필수수정) ❌
+   - **04-Security-Design-MissingCode.md**: 45점 (필수수정) ❌
+   - **05-Performance-Design-MissingHistory.md**: 55점 (필수수정) ❌
+
+2. **자동 처리 결과**:
+   - 품질 등급별 자동 분류 완료
+   - 70점 미만 문서들(3개)에 대해 GitHub Issue 자동 생성
+   - 각 이슈에 품질 점수, 위반 사항, 수정 가이드 포함
+   - 처리 시간 및 성능 통계 출력
+
+**생성되는 파일들**:
+- 품질 리포트: `.specgate/data/quality_reports/quality_report_{score}pts_{level}_{타임스탬프}.json`
+- GitHub Issue: 자동 생성된 이슈 링크 출력
+
+### 3단계: HITL 프로세스 시연
+**목표**: 70-89점 문서의 HITL(Human-in-the-Loop) 검토 과정 시연
+
+**데모 방법**:
+Cursor IDE 채팅에서 다음 프롬프트 입력:
+
+```
+"02-Architecture-Design-TitleError.md" 문서의 품질 문제를 수정해줘.
+```
+
+**예상 결과**:
+- 제목 오류 감지: "잘못된 제목" → "SpecGate 아키텍처 설계서"
+- 수정된 문서로 재검사: 75점 → 90점
+- 자동승인 처리 완료
+
+### 4단계: Confluence 연동 시연 (선택사항)
+**목표**: 실제 Confluence 환경에서 자동 파이프라인 실행
+
+**데모 방법**:
+Cursor IDE 채팅에서 다음 프롬프트 입력:
+
+```
+Confluence에서 "design" 라벨이 붙은 문서 3개를 수집하고, 자동으로 전체 파이프라인을 실행해줘.
 ```
 
 **예상 결과**:
 - 3개 설계 문서 수집 성공
-- HTML 원본 파일이 `.specgate/data/html_files/{제목}_{타임스탬프}.html`로 저장
-- 각 문서의 제목, 라벨, 수정일 등 메타데이터 출력
-- `.specgate/data` 폴더가 자동 생성됨
+- HTML 원본 자동 저장
+- HTML→Markdown 자동 변환
+- 품질 검사 및 점수 계산 자동 실행
+- 품질 등급별 자동 처리 완료
 
-### 3단계: HTML→MD 변환
-**목표**: 수집한 HTML 문서를 Markdown으로 변환
-
-**데모 방법**:
-Cursor IDE 채팅에서 다음 프롬프트 입력:
-
-```
-2. 방금 수집한 문서 중 "SpecGate 보안 설계서"를 Markdown으로 변환해줘.
-```
-
-**예상 결과**:
-- HTML이 Markdown으로 변환
-- 헤딩, 리스트, 표, 코드블록 등 구조 보존
-- Markdown 파일이 `.specgate/data/md_files/` 경로에 저장 (선택, 저장 시)
-- 변환된 Markdown 내용이 채팅에 표시됨
-
-### 4단계: 문서 품질 검사
-**목표**: 변환된 Markdown 문서의 품질을 검사하고 점수 계산
-
-**데모 방법**:
-Cursor IDE 채팅에서 다음 프롬프트 입력:
-
-```
-3. 방금 변환한 Markdown 내용의 품질을 검사해줘. 점수와 개선사항도 알려줘.
-```
-
-**예상 결과**:
-- 품질 점수 산출 및 위반·개선 제안 출력
-- 품질 등급별 처리 안내: ≥90 자동승인, 70–89 HITL 검토, <70 필수수정
-- 70–89점 또는 <70점일 경우 GitHub Issue 자동 생성(링크 표시)
-- 품질 리포트 JSON 파일이 `.specgate/data/quality_reports/` 경로에 저장 (선택)
-
-### 5단계: 전체 파이프라인 자동화
-**목표**: 전체 워크플로우를 한 번에 실행하여 자동화 확인
-
-**데모 방법**:
-Cursor IDE 채팅에서 다음 프롬프트 입력:
-
-```
-4. 전체 파이프라인을 한 번에 실행해줘. Confluence에서 문서를 수집하고, HTML을 Markdown으로 변환하고, 품질 검사까지 모두 자동으로 해줘.
-```
-
-**예상 결과**:
-- 전체 파이프라인이 자동으로 실행
-- 처리된 문서 수, 성공률, 평균 품질 점수 출력
-- 에러 발생 시 적절한 에러 메시지 표시
+**생성되는 파일들**:
+- HTML 원본: `.specgate/data/html_files/{제목}_{타임스탬프}.html`
+- Markdown: `.specgate/data/md_files/{제목}_{타임스탬프}.md`
+- 품질 리포트: `.specgate/data/quality_reports/quality_report_{score}pts_{level}_{타임스탬프}.json`
 
 ## 📝 데모 실행 방법
 
@@ -155,30 +157,46 @@ AI: confluence_fetch 도구 호출
    - 3개 도구 등록 및 연동 (`confluence_fetch`, `speclint_lint`, `html_to_md`)
    - 데이터 전달 구조 완벽 구현
 
-2. **Confluence 문서 수집** (US-001)
+2. **자동 파이프라인** (핵심 혁신!)
+   - **한 번의 요청으로 전체 워크플로우 자동 실행**
+   - Confluence 수집 → HTML→MD 변환 → 품질검사 → GitHub Issue 생성
+   - `auto_pipeline=True` 옵션으로 완전 자동화
+   - 에러 발생 시 적절한 롤백 및 복구
+
+3. **Confluence 문서 수집** (US-001)
    - Confluence API 완전 연동
    - 라벨 기반 필터링 (CQL 쿼리)
    - HTML 원본 자동 저장
    - SpecGate 형식 변환
 
-3. **문서 품질 검사** (US-002)
+4. **문서 품질 검사** (US-002)
    - SpecLint 완전 구현
    - 0-100점 품질 점수 계산
    - HITL 프로세스 (GitHub Issue 연동)
    - 배치 처리 및 에러 처리
 
-4. **HTML→MD 변환** (US-003)
+5. **HTML→MD 변환** (US-003)
    - 완벽한 HTML→Markdown 변환
    - 헤딩, 리스트, 표, 코드블록 지원
    - Confluence 특화 요소 처리
    - 파일 저장 기능
 
+6. **다양한 품질 등급 처리**
+   - **Perfect 문서**: 95점 (자동승인)
+   - **Title Error**: 75점 (HITL 검토)
+   - **Missing Rules**: 65점 (GitHub Issue 생성)
+   - **Missing Code**: 45점 (GitHub Issue 생성)
+   - **Missing History**: 55점 (GitHub Issue 생성)
+
 ### 🎯 데모 성공 기준
 - [x] MCP Server 정상 연결
+- [x] **자동 파이프라인 완전 동작** (핵심!)
 - [x] Confluence 문서 수집 성공
 - [x] HTML→MD 변환 완벽 동작
 - [x] 품질 검사 및 점수 계산 정상
-- [x] 전체 파이프라인 자동화 동작
+- [x] **GitHub Issue 자동 생성** 성공
+- [x] **다양한 품질 등급 처리** 시연
+- [x] **HITL 프로세스** 검토 과정 시연
 - [x] 실제 Confluence 문서에서 테스트 성공
 
 ## 📌 스프린트 1 마감 요약
