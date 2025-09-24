@@ -15,7 +15,7 @@ class HTMLToMarkdownConverter:
         self.logger = logging.getLogger("specgate.htmlconverter.converter")
         self.conversion_mapping = self._init_conversion_mapping()
     
-    async def convert(self, html_content: str, preserve_structure: bool = True, save_to_file: bool = False, output_path: str = None) -> Dict[str, Any]:
+    async def convert(self, html_content: str, preserve_structure: bool = True, save_to_file: bool = False, output_path: str = None, document_title: str = None) -> Dict[str, Any]:
         """HTML을 Markdown으로 변환한다."""
         try:
             import time
@@ -38,6 +38,11 @@ class HTMLToMarkdownConverter:
             )
 
             markdown_parts = []
+            
+            # 제목이 없고 document_title이 제공된 경우 제목 추가
+            if document_title and not soup.find(['h1', 'h2', 'h3', 'h4', 'h5', 'h6']):
+                markdown_parts.append(f"# {document_title}")
+                self.logger.info(f"제목 추가됨: {document_title}")
             
             # 주요 요소들을 순서대로 변환
             for element in soup.find_all(['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 

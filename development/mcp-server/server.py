@@ -155,11 +155,15 @@ async def confluence_fetch(
                     except Exception as _outer_e:
                         logging.getLogger("specgate.html_to_md").warning(f"MD 중복 처리 단계 오류: {_outer_e}")
                 
+                # 문서 제목 가져오기
+                document_title = doc.get("title", "")
+                
                 md_conv = await html_converter.convert(
                     html_content=html_content,
                     preserve_structure=True,
                     save_to_file=bool(md_output_path),
-                    output_path=md_output_path
+                    output_path=md_output_path,
+                    document_title=document_title
                 )
                 markdown_text = md_conv.get("markdown")
                 

@@ -87,6 +87,9 @@ Cursor의 `mcp.json`에 다음 설정을 추가하세요:
         "CONFLUENCE_DOMAIN": "your-domain.atlassian.net",
         "CONFLUENCE_EMAIL": "your-email@example.com", 
         "CONFLUENCE_API_TOKEN": "your-api-token",
+        "GITHUB_TOKEN": "your-github-token",
+        "GITHUB_OWNER": "your-github-username",
+        "GITHUB_REPO": "your-repository-name",
         "CLIENT_WORK_DIR": "/path/to/your/project"
       }
     }
@@ -94,7 +97,9 @@ Cursor의 `mcp.json`에 다음 설정을 추가하세요:
 }
 ```
 
-**⚠️ 중요**: `CLIENT_WORK_DIR`을 설정하면 해당 프로젝트 폴더에 `.specgate/` 디렉토리가 생성되어 모든 파일이 저장됩니다.
+**⚠️ 중요**: 
+- `CLIENT_WORK_DIR`을 설정하면 해당 프로젝트 폴더에 `.specgate/` 디렉토리가 생성되어 모든 파일이 저장됩니다.
+- GitHub 관련 환경변수는 HITL(Human-in-the-Loop) 워크플로우와 이슈 자동 생성 기능에 필요합니다.
 
 ### 2. MCP 서버 실행
 ```bash

@@ -78,9 +78,43 @@ class ConfluenceDataTransformer:
     
     def _convert_html_to_markdown(self, result: Dict[str, Any]) -> str:
         """HTML을 Markdown으로 변환"""
+        from ..html_to_md.converter import HTMLToMarkdownConverter
+        
         content = result.get("body", {}).get("storage", {}).get("value", "")
         if not content:
             return ""
+        
+        document_title = result.get("title", "")
+        
+        # HTML to Markdown 변환기 사용
+        converter = HTMLToMarkdownConverter()
+        
+        # 비동기 함수를 동기적으로 호출
+        import asyncio
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        
+        conversion_result = loop.run_until_complete(
+            converter.convert(content, document_title=document_title)
+        )
+        
+        if conversion_result and "markdown" in conversion_result:
+            self.logger.info(f"HTML to Markdown 변환기 사용됨 - 제목: {document_title}")
+            return conversion_result["markdown"]
+        
+        # 폴백: 간단한 변환
+        self.logger.info(f"폴백 변환 사용됨 - 제목: {document_title}")
+        return self._fallback_html_to_markdown(content, document_title)
+    
+    def _fallback_html_to_markdown(self, content: str, document_title: str = "") -> str:
+        """HTML to Markdown 변환 폴백 방식"""
+        # 제목이 없으면 추가 (h1 태그가 없고 document_title이 있는 경우)
+        if document_title and not re.search(r'<h1>', content):
+            content = f"<h1>{document_title}</h1>\n{content}"
+            self.logger.info(f"제목 추가됨: {document_title}")
         
         # 간단한 HTML 태그 제거 및 변환
         content = content.replace("<p>", "").replace("</p>", "\n")
