@@ -7,7 +7,7 @@ SpecGate MCP Server의 기본 구조를 FastMCP 2.0 표준에 맞게 구축하�
 
 ### 1.2 핵심 기능
 - FastMCP 2.0 기반 서버 구성(필요 시 미들웨어/Context 사용)
-- 내부 패키지 구조로 도구 분리: `confluence_fetch/`, `speclint_lint/`, `html_to_md/`
+- 내부 패키지 구조로 도구 분리: `confluence_fetch/`, `speclint_lint/`, `html_to_md/`(변환 엔진 모듈)
 - 워크플로우 관리: `workflows/hitl/`(품질 점수 임계치 기반 GitHub Issue 자동 생성)
 - GitHub 통합: `integrations/github/` 클라이언트로 이슈 생성/조회/라벨/코멘트
 - 데이터 경로 표준화: `.specgate/data/html_files/`, `md_files/`, `.specgate/data/quality_reports/`
@@ -19,20 +19,12 @@ SpecGate MCP Server의 기본 구조를 FastMCP 2.0 표준에 맞게 구축하�
 ### 2.1 서버 구성
 ```python
 from fastmcp import FastMCP, Context
-# (선택) 미들웨어는 필요 시 사용
-# from fastmcp.server.middleware.logging import StructuredLoggingMiddleware
-# from fastmcp.server.middleware.error_handling import ErrorHandlingMiddleware
 
 # FastMCP 2.0 서버 인스턴스 생성
 mcp = FastMCP(
     name="specgate-server",
     description="SpecGate MCP Server for Phase 1"
 )
-
-# 미들웨어 추가
-# (선택) 미들웨어 등록 예시
-# mcp.add_middleware(StructuredLoggingMiddleware())
-# mcp.add_middleware(ErrorHandlingMiddleware())
 ```
 
 ### 2.2 FastMCP 2.0 도구 구조
@@ -56,11 +48,7 @@ async def confluence_fetch(
     Returns:
         dict: 수집된 문서 정보
     """
-    # Context를 통한 로깅 및 진행상황 보고
-    # 필요 시 진행률/로그 사용
-    # await ctx.info(f"Confluence 문서 수집 시작: {label}")
-    # await ctx.report_progress(0, 100, "문서 검색 중...")
-    
+      
     try:
         # 구현 로직
         result = {"status": "success", "documents": []}
@@ -71,18 +59,17 @@ async def confluence_fetch(
 
 ## 3. FastMCP 2.0 도구별 구현 구조
 
-### 3.1 confluence.fetch 도구
+### 3.1 confluence_fetch 도구
 ```python
-@mcp.tool(
-    name="confluence.fetch",
-    description="Confluence 문서 수집 및 HTML→MD 변환",
-    tags={"confluence", "document", "phase1"}
-)
+@mcp.tool()
 async def confluence_fetch(
     label: str, 
     space_key: str | None = None, 
     limit: int = 10,
-    ctx: Context
+    save_html: bool = True,
+    output_dir: str | None = None,
+    auto_pipeline: bool = True,
+    auto_create_github_issues: bool = True
 ) -> dict:
     """Confluence에서 라벨 기준으로 문서를 수집하고 HTML을 Markdown으로 변환
     
@@ -90,7 +77,10 @@ async def confluence_fetch(
         label: 검색할 라벨 (필수)
         space_key: Confluence 스페이스 키 (선택사항)
         limit: 최대 결과 수 (기본값: 10)
-        ctx: FastMCP Context
+        save_html: HTML 파일 저장 여부 (기본값: True)
+        output_dir: 출력 디렉토리 (선택사항)
+        auto_pipeline: 자동 파이프라인 실행 여부 (기본값: True)
+        auto_create_github_issues: GitHub 이슈 자동 생성 여부 (기본값: True)
     
     Returns:
         dict: {
@@ -99,7 +89,6 @@ async def confluence_fetch(
             "metadata": dict
         }
     """
-    # 필요 시 Context 사용 (1차 구현은 내부 로깅 위주)
     
     try:
         # 1단계: Confluence API 호출
@@ -144,7 +133,7 @@ async def _convert_html_to_markdown(documents: list) -> list:
 - 도구 구조: Phase 1 핵심 도구는 내부 패키지로 구성됨
   - `confluence_fetch/`: 수집·변환 파이프라인 (서비스/클라이언트/트랜스포머 분리)
   - `speclint_lint/`: 품질 검사 엔진 (분석/스코어/서제스트/밸리데이터 분리)
-  - `html_to_md/`: HTML→Markdown 변환기 (컨버터/파서/밸리데이터)
+  - `html_to_md/`: HTML→Markdown 변환기 모듈 (컨버터/파서/밸리데이터) - MCP 도구는 제거, 내부 엔진만 유지해서 수집 파이프라인에서 호출
   - `workflows/hitl/`: 점수 임계치 기반 GitHub Issue 워크플로우 매니저
   - `integrations/github/`: GitHub API 클라이언트
 - 로깅/미들웨어: 표준 Python 로깅으로 단계 로그를 남기며, 미들웨어와 진행률 보고는 선택 가이드로 유지
@@ -160,24 +149,22 @@ async def _convert_html_to_markdown(documents: list) -> list:
 - Confluence URL 정책: `_links.webui` 상대경로를 `https://{CONFLUENCE_DOMAIN}/wiki` 접두로 절대 URL 보정
 - 에러 처리: 각 도구 내 의미 있는 예외 처리와 상태 리턴을 우선합니다
 
-### 3.2 speclint.lint 도구
+### 3.2 speclint_lint 도구
 ```python
-@mcp.tool(
-    name="speclint.lint",
-    description="문서 품질 검사 및 점수 계산",
-    tags={"quality", "linting", "phase1"}
-)
+@mcp.tool()
 async def speclint_lint(
     content: str,
     check_type: str = "full",
-    ctx: Context
+    save_report: bool = True,
+    output_dir: str = None
 ) -> dict:
     """문서의 표준 템플릿 준수 여부를 검사하고 품질 점수를 계산
     
     Args:
         content: 검사할 문서 내용 (필수)
         check_type: 검사 유형 ("full", "basic", "structure") (기본값: "full")
-        ctx: FastMCP Context
+        save_report: 품질 리포트 저장 여부 (기본값: True)
+        output_dir: 출력 디렉토리 (선택사항)
     
     Returns:
         dict: {
@@ -187,43 +174,11 @@ async def speclint_lint(
             "metadata": dict
         }
     """
-    await ctx.info(f"문서 품질 검사 시작 - 검사 유형: {check_type}")
-    await ctx.report_progress(0, 100, "문서 분석 중...")
-    
     try:
-        # 1단계: 문서 구조 분석
-        await ctx.report_progress(20, 100, "문서 구조 분석 중...")
-        structure_analysis = await _analyze_document_structure(content)
-        
-        # 2단계: 템플릿 준수 검사
-        await ctx.report_progress(50, 100, "템플릿 준수 검사 중...")
-        template_violations = await _check_template_compliance(content, check_type)
-        
-        # 3단계: 품질 점수 계산
-        await ctx.report_progress(80, 100, "품질 점수 계산 중...")
-        quality_score = await _calculate_quality_score(structure_analysis, template_violations)
-        
-        # 4단계: 개선 제안 생성
-        await ctx.report_progress(95, 100, "개선 제안 생성 중...")
-        suggestions = await _generate_improvement_suggestions(template_violations)
-        
-        result = {
-            "score": quality_score,
-            "violations": template_violations,
-            "suggestions": suggestions,
-            "metadata": {
-                "check_type": check_type,
-                "content_length": len(content),
-                "timestamp": datetime.now().isoformat()
-            }
-        }
-        
-        await ctx.report_progress(100, 100, "검사 완료")
-        await ctx.info(f"품질 검사 완료 - 점수: {quality_score}/100")
+        result = await speclint_engine.lint(content, check_type, document_title)
         return result
         
     except Exception as e:
-        await ctx.error(f"품질 검사 실패: {str(e)}")
         raise ToolError(f"품질 검사 중 오류 발생: {str(e)}")
 
 # 내부 헬퍼 함수들
@@ -248,69 +203,41 @@ async def _generate_improvement_suggestions(violations: list) -> list:
     pass
 ```
 
-### 3.3 html.to_md 도구
+### 3.3 HTML→MD 변환 (내부 모듈)
+**주의**: `html_to_md` MCP 도구는 MVP 단계에서 제거되었습니다. HTML→MD 변환은 `confluence_fetch` 내부에서 자동으로 처리됩니다.
+
 ```python
-@mcp.tool(
-    name="html.to_md",
-    description="HTML을 Markdown으로 변환",
-    tags={"conversion", "html", "markdown", "phase1"}
+# 실제 구현: confluence_fetch 내부에서 사용
+# 1. transformer.py에서 기본 변환
+from html_to_md.converter import HTMLToMarkdownConverter
+converter = HTMLToMarkdownConverter()
+converted = converter.convert(html_content, document_title=title)
+
+# 2. auto_pipeline에서 파일 저장용 변환  
+from html_to_md.converter import HTMLToMarkdownConverter
+html_converter = HTMLToMarkdownConverter()
+result = await html_converter.convert(
+    html_content=html_content,
+    preserve_structure=True,
+    save_to_file=bool(md_output_path),
+    output_path=md_output_path,
+    document_title=document_title
 )
-async def html_to_md(
-    html_content: str,
-    preserve_structure: bool = True,
-    ctx: Context
-) -> dict:
-    """HTML 내용을 Markdown 형식으로 변환
-    
-    Args:
-        html_content: 변환할 HTML 내용 (필수)
-        preserve_structure: 구조 보존 여부 (기본값: True)
-        ctx: FastMCP Context
-    
-    Returns:
-        dict: {
-            "markdown": str,
-            "metadata": dict,
-            "conversion_info": dict
-        }
-    """
-    await ctx.info(f"HTML→Markdown 변환 시작 - 구조보존: {preserve_structure}")
-    await ctx.report_progress(0, 100, "HTML 파싱 중...")
-    
+```
+
+**호출 지점**:
+- `confluence_fetch/transformer.py`: 기본 변환 (응답 데이터용)
+- `server.py` auto_pipeline: 파일 저장용 변환 (`.specgate/data/md_files/`)
     try:
-        # 1단계: HTML 파싱 및 구조 분석
-        await ctx.report_progress(20, 100, "HTML 구조 분석 중...")
-        parsed_html = await _parse_html_structure(html_content)
-        
-        # 2단계: Markdown 변환
-        await ctx.report_progress(60, 100, "Markdown 변환 중...")
-        markdown_content = await _convert_to_markdown(parsed_html, preserve_structure)
-        
-        # 3단계: 변환 정보 수집
-        await ctx.report_progress(90, 100, "변환 정보 수집 중...")
-        conversion_info = {
-            "original_length": len(html_content),
-            "converted_length": len(markdown_content),
-            "compression_ratio": len(markdown_content) / len(html_content),
-            "structure_preserved": preserve_structure,
-            "elements_converted": await _count_converted_elements(parsed_html)
-        }
-        
-        result = {
-            "markdown": markdown_content,
-            "metadata": {
-                "timestamp": datetime.now().isoformat(),
-                "preserve_structure": preserve_structure
-            },
-            "conversion_info": conversion_info
-        }
-        
-        await ctx.report_progress(100, 100, "변환 완료")
-        await ctx.info(f"HTML→Markdown 변환 완료 - 압축률: {conversion_info['compression_ratio']:.2%}")
+        result = await html_converter.convert(
+            html_content, 
+            preserve_structure=preserve_structure,
+            save_to_file=save_to_file,
+            output_path=output_path
+        )
         return result
         
     except Exception as e:
-        await ctx.error(f"HTML→Markdown 변환 실패: {str(e)}")
         raise ToolError(f"변환 중 오류 발생: {str(e)}")
 
 # 내부 헬퍼 함수들
@@ -347,9 +274,7 @@ mcp = FastMCP(
     description="SpecGate MCP Server for Phase 1 - Confluence 문서 처리"
 )
 
-# 미들웨어 등록
-mcp.add_middleware(StructuredLoggingMiddleware())
-mcp.add_middleware(ErrorHandlingMiddleware())
+# 기본 로깅 시스템 사용
 
 # 도구들 정의 (위에서 정의한 도구들)
 # @mcp.tool 데코레이터로 자동 등록됨
@@ -398,7 +323,7 @@ CONFLUENCE_EMAIL=you@example.com
 CONFLUENCE_API_TOKEN=xxxx
 
 # GitHub
-GITHUB_TOKEN=ghp_xxx
+GITHUB_TOKEN=your-github-token
 GITHUB_OWNER=owner
 GITHUB_REPO=repo
 ```

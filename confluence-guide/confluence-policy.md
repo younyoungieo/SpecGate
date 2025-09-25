@@ -172,7 +172,7 @@ cql = f'label = "{label}"'
 # 필수 환경변수
 CONFLUENCE_DOMAIN=your-domain.atlassian.net
 CONFLUENCE_EMAIL=service-account@company.com  
-CONFLUENCE_API_TOKEN=ATATT3xFfGF...
+CONFLUENCE_API_TOKEN=your-api-token
 
 # 선택적 환경변수
 CLIENT_WORK_DIR=/path/to/project

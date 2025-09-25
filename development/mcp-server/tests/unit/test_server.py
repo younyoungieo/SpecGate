@@ -4,7 +4,7 @@ SpecGate MCP Server 테스트
 import pytest
 import asyncio
 import os
-from server import mcp, confluence_fetch, speclint_lint, html_to_md
+from server import mcp, confluence_fetch, speclint_lint
 from server import _analyze_document_structure, _check_template_compliance, _calculate_quality_score, _generate_improvement_suggestions
 
 
@@ -104,14 +104,6 @@ class TestMCPServer:
         assert hasattr(speclint_lint, 'name')
         assert speclint_lint.name == 'speclint_lint'
         assert '품질' in speclint_lint.description
-    
-    def test_html_to_md_tool(self):
-        """html.to_md 도구 구조 테스트"""
-        # 도구가 FastMCP에 제대로 등록되었는지 확인
-        assert html_to_md is not None
-        assert hasattr(html_to_md, 'name')
-        assert html_to_md.name == 'html_to_md'
-        assert 'HTML' in html_to_md.description
     
     def test_error_handling(self):
         """에러 처리 구조 테스트"""

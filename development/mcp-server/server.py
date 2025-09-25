@@ -173,6 +173,9 @@ async def confluence_fetch(
                 # 문서 제목 가져오기
                 document_title = doc.get("title", "")
                 
+                # HTML→MD 변환기 직접 사용
+                from html_to_md.converter import HTMLToMarkdownConverter
+                html_converter = HTMLToMarkdownConverter()
                 md_conv = await html_converter.convert(
                     html_content=html_content,
                     preserve_structure=True,
@@ -519,120 +522,6 @@ async def hitl_get_summary() -> dict:
             "status": "error",
             "message": f"워크플로우 요약 조회 실패: {str(e)}"
         }
-
-
-# =============================================================================
-# 3. html.to_md 도구 구현 (리팩토링된 모듈 사용)
-# =============================================================================
-from html_to_md import HTMLToMarkdownConverter
-
-# HTML→MD 변환기 인스턴스 생성
-html_converter = HTMLToMarkdownConverter()
-
-@mcp.tool()
-async def html_to_md(
-    html_content: str,
-    preserve_structure: bool = True,
-    save_to_file: bool = True,
-    output_path: str = None,
-    output_dir: str = None,
-    filename_base: str | None = None
-) -> dict:
-    """HTML 내용을 Markdown 형식으로 변환
-    
-    Args:
-        html_content: 변환할 HTML 내용 (필수)
-        preserve_structure: 구조 보존 여부 (기본값: True)
-        save_to_file: 파일로 저장 여부 (기본값: True)
-        output_path: 저장할 파일 경로 (기본값: None, 자동 생성)
-        output_dir: 저장할 디렉토리 (기본값: None, 자동 감지)
-        filename_base: HTML 파일명 기반으로 MD 파일명을 지정할 때 사용 (확장자 제외 가능)
-    
-    Returns:
-        dict: {
-            "markdown": str,
-            "metadata": dict,
-            "conversion_info": dict
-        }
-    """
-    # 출력 경로 기본값 결정
-    if save_to_file and not output_path:
-        import os
-        from datetime import datetime
-        
-        # 출력 디렉토리 결정 및 생성
-        base_dir = _get_specgate_data_dir("md_files", output_dir)
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        
-        import re, glob
-        if filename_base:
-            import os as _os
-            base_no_ext = _os.path.splitext(filename_base)[0]
-            safe_title = re.sub(r'[^\w\- ]+', '', base_no_ext).strip().replace(' ', '_')[:80] or "converted"
-            # HTML 파일명에 타임스탬프가 포함되어 있는지 확인
-            ts_match = re.search(r"_(\d{8}_\d{6})$", safe_title)
-            final_name = None
-            if ts_match:
-                # HTML 파일명에 타임스탬프가 있다면 동일 타임스탬프를 MD에도 사용
-                final_name = f"{safe_title}.md"
-            else:
-                # html_files에서 동일 제목의 최신 타임스탬프를 찾아서 사용
-                try:
-                    client_dir = _get_client_work_dir()
-                    html_dir = os.path.join(client_dir, ".specgate", "data", "html_files")
-                    candidates = []
-                    for p in glob.glob(os.path.join(html_dir, f"{safe_title}_*.html")):
-                        bn = os.path.basename(p)
-                        m = re.match(rf"^{re.escape(safe_title)}_(\d{{8}}_\d{{6}})\.html$", bn)
-                        if m:
-                            candidates.append(m.group(1))
-                    if candidates:
-                        latest_ts = sorted(candidates)[-1]
-                        final_name = f"{safe_title}_{latest_ts}.md"
-                except Exception:
-                    pass
-            # MD 파일 중복 처리: 동일 safe_title의 이전 타임스탬프 MD 삭제
-            try:
-                ts_regex_md = re.compile(rf"^{re.escape(safe_title)}_\d{{8}}_\d{{6}}\.md$")
-                for old_md in glob.glob(os.path.join(base_dir, f"{safe_title}_*.md")):
-                    base_md = os.path.basename(old_md)
-                    if not ts_regex_md.match(base_md):
-                        continue
-                    try:
-                        os.remove(old_md)
-                        logging.getLogger("specgate.html_to_md").info(f"기존 MD 파일 삭제(중복 처리): {old_md}")
-                    except Exception as _e:
-                        logging.getLogger("specgate.html_to_md").warning(f"기존 MD 파일 삭제 실패: {old_md} ({_e})")
-            except Exception as _outer_e:
-                logging.getLogger("specgate.html_to_md").warning(f"MD 중복 처리 단계 오류: {_outer_e}")
-            if not final_name:
-                final_name = f"{safe_title}.md"
-            output_path = os.path.join(base_dir, final_name)
-        else:
-            # HTML에서 제목 추출하여 파일명에 반영
-            try:
-                from bs4 import BeautifulSoup
-                soup = BeautifulSoup(html_content or "", 'html.parser')
-                title_tag = soup.find(['h1','h2','h3','h4','h5','h6']) or soup.find('title')
-                raw_title = title_tag.get_text().strip() if title_tag else "converted"
-            except Exception:
-                raw_title = "converted"
-            safe_title = re.sub(r'[^\w\- ]+', '', raw_title).strip().replace(' ', '_')[:80] or "converted"
-            import re as _re
-            ts_regex_md = _re.compile(rf"^{_re.escape(safe_title)}_\d{{8}}_\d{{6}}\.md$")
-            for old_md in glob.glob(os.path.join(base_dir, f"{safe_title}_*.md")):
-                base_md = os.path.basename(old_md)
-                if not ts_regex_md.match(base_md):
-                    continue
-                try:
-                    os.remove(old_md)
-                    logging.getLogger("specgate.html_to_md").info(f"기존 MD 파일 삭제(중복 처리): {old_md}")
-                except Exception as _e:
-                    logging.getLogger("specgate.html_to_md").warning(f"기존 MD 파일 삭제 실패: {old_md} ({_e})")
-            output_path = os.path.join(base_dir, f"{safe_title}_{timestamp}.md")
-
-    return await html_converter.convert(html_content, preserve_structure, save_to_file, output_path)
-
 
 # =============================================================================
 # 서버 생명주기 관리

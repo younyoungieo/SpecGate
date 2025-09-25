@@ -5,12 +5,13 @@
 ### 1.1 목적
 Confluence에서 수집한 HTML 문서를 Markdown 형식으로 변환하여 Phase 2에서 설계 규칙 추출이 가능한 표준화된 문서를 생성한다.
 
-### 1.2 핵심 기능 (업데이트됨)
-- **리팩토링된 모듈 구조**: HTMLToMarkdownConverter, HTMLParser, HTMLValidator 분리
-- **HTML 내용 직접 변환**: html_to_md 도구 (기본 저장 활성화)
-- **파일 저장 기능**: 변환된 Markdown을 파일로 저장 (기본 경로: `data/markdown_files/`)
-- **메타데이터 보존**: 소스 파일 경로 추적
-- **변환 품질 검증**: 변환 성공률 및 정확도 검사
+### 1.2 핵심 기능
+- **단일 모듈 구조**: HTMLToMarkdownConverter 클래스 중심 (HTMLParser, HTMLValidator는 미구현)
+- **MCP 도구 제거**: 독립적인 html_to_md MCP 도구는 제거, confluence_fetch 내부에서만 사용
+- **파일 저장 기능**: save_to_file 매개변수로 제어 (기본 경로: `.specgate/data/md_files/`)
+- **성능 측정**: 단계별 변환 시간 측정 및 로깅
+- **Confluence 특화**: 매크로(ac:structured-macro) 변환 지원
+- **중급 변환**: 표, 코드 블록, 인라인 요소, 인용문 등 포괄적 지원
 
 ## 2. 변환 규칙
 
@@ -134,45 +135,73 @@ def extract_tables(soup):
 
 ## 4. Markdown 변환 로직
 
-### 4.1 기본 변환 함수
+### 4.1 기본 변환 함수 (HTMLToMarkdownConverter.convert)
 ```python
-def convert_to_markdown(html_content):
+async def convert(self, html_content: str, ...):
     """HTML을 Markdown으로 변환한다."""
+    import time
+    start_time = time.time()
+    
+    # 1단계: HTML 파싱
+    self.logger.info(f"HTML→MD | step=parse | parser=html.parser | length={len(html_content)}")
     soup = BeautifulSoup(html_content, 'html.parser')
+    
+    # 2단계: 요소별 변환
     markdown_parts = []
+    elements = soup.find_all(['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 
+                             'p', 'ul', 'ol', 'table', 'pre', 'blockquote',
+                             'ac:structured-macro'])  # Confluence 매크로 포함
     
-    for element in soup.find_all(['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 
-                                 'p', 'ul', 'ol', 'table', 'pre', 'blockquote']):
-        markdown_parts.append(convert_element(element))
+    for element in elements:
+        converted = self._convert_element(element, preserve_structure)
+        if converted.strip():
+            markdown_parts.append(converted)
     
-    return '\n\n'.join(markdown_parts)
+    # 3단계: 최종 조합 및 정리
+    markdown = '\n\n'.join(markdown_parts)
+    
+    # 4단계: 성능 로깅
+    processing_time = time.time() - start_time
+    self.logger.info(f"HTML→MD | total={processing_time:.3f}s")
+    
+    return {"markdown": markdown, "processing_time_seconds": processing_time}
 ```
 
 ### 4.2 요소별 변환 함수
 ```python
-def convert_element(element):
+def _convert_element(self, element: Tag, preserve_structure: bool) -> str:
     """개별 HTML 요소를 Markdown으로 변환한다."""
     tag = element.name
     
+    # 헤딩 변환 (h1~h6)
     if tag in ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']:
-        level = int(tag[1])
-        return f"{'#' * level} {element.get_text().strip()}"
+        return self._convert_heading(element)
     
+    # 문단 변환 (인라인 요소 포함 처리)
     elif tag == 'p':
-        return convert_paragraph(element)
+        return self._convert_paragraph(element)
     
+    # 리스트 변환 (ul, ol)
     elif tag in ['ul', 'ol']:
-        return convert_list(element)
+        return self._convert_list(element)
     
+    # 표 변환 (header + separator + rows)
     elif tag == 'table':
-        return convert_table(element)
+        return self._convert_table(element)
     
+    # 코드 블록 변환 (언어 감지)
     elif tag == 'pre':
-        return convert_code_block(element)
+        return self._convert_code_block(element)
     
+    # 인용문 변환
     elif tag == 'blockquote':
-        return convert_blockquote(element)
+        return self._convert_blockquote(element)
     
+    # Confluence 매크로 변환
+    elif tag == 'ac:structured-macro':
+        return self._convert_confluence_macro(element)
+    
+    # 기타 요소는 텍스트만 추출
     else:
         return element.get_text().strip()
 ```
@@ -222,47 +251,64 @@ def convert_table(table_element):
     return '\n'.join(rows)
 ```
 
-## 5. API 설계 (새로 추가됨)
+## 5. API 설계 (실제 구현)
 
-### 5.1 html_to_md 인터페이스 (HTML 내용 직접 변환)
+### 5.1 HTMLToMarkdownConverter 클래스
 ```python
-@mcp.tool()
-async def html_to_md(
-    html_content: str,
-    preserve_structure: bool = True,
-    save_to_file: bool = True,
-    output_path: str = None
-) -> dict:
-    """HTML 내용을 Markdown 형식으로 변환
-    
-    Args:
-        html_content: 변환할 HTML 내용 (필수)
-        preserve_structure: 구조 보존 여부 (기본값: True)
-        save_to_file: 파일로 저장 여부 (기본값: False)
-        output_path: 저장할 파일 경로 (기본값: None, 자동 생성)
-    
-    Returns:
-        dict: {
-            "markdown": str,
-            "metadata": dict,
-            "conversion_info": dict
-        }
-    """
-    return await html_converter.convert(html_content, preserve_structure, save_to_file, output_path)
+class HTMLToMarkdownConverter:
+    async def convert(
+        self, 
+        html_content: str, 
+        preserve_structure: bool = True, 
+        save_to_file: bool = False, 
+        output_path: str = None, 
+        document_title: str = None
+    ) -> Dict[str, Any]:
+        """HTML을 Markdown으로 변환한다.
+        
+        Args:
+            html_content: 변환할 HTML 내용 (필수)
+            preserve_structure: 구조 보존 여부 (기본값: True)
+            save_to_file: 파일로 저장 여부 (기본값: False)
+            output_path: 저장할 파일 경로 (기본값: None, 자동 생성)
+            document_title: 문서 제목 (로깅용)
+        
+        Returns:
+            Dict[str, Any]: {
+                "markdown": str,  # 변환된 Markdown 내용
+                "metadata": dict,  # 변환 메타데이터
+                "conversion_info": dict  # 변환 상세 정보
+            }
+        """
 ```
 
-### 5.3 사용 예시
-```python
-# 방법 1: HTML 내용 직접 변환
-result1 = await html_to_md("""
-<h1>API 설계서</h1>
-<h2>설계 규칙</h2>
-<p><strong>RULE-API-001</strong> (MUST): 모든 API는 RESTful 원칙을 따라야 한다</p>
-""", save_to_file=True)
+**주요 차이점**:
+- MCP 도구가 아닌 일반 클래스 메서드
+- `document_title` 매개변수 추가
+- save_to_file 기본값: True → False
 
-# 방법 2: 저장된 HTML 파일 변환 (새로운 워크플로우)
-result2 = await convert_saved_html("html_files/API_20241219_143022/API_Design_1.html")
+### 5.2 사용 예시
+```python
+# confluence_fetch 내부에서 사용되는 방식
+from html_to_md.converter import HTMLToMarkdownConverter
+converter = HTMLToMarkdownConverter()
+
+# 1. transformer.py에서 기본 변환 (응답용)
+converted = converter.convert(html_content, document_title=title)
+
+# 2. server.py auto_pipeline에서 파일 저장용 변환
+result = await converter.convert(
+    html_content=html_content,
+    preserve_structure=True,
+    save_to_file=bool(md_output_path),
+    output_path=md_output_path,
+    document_title=document_title
+)
 ```
+
+**실제 사용 위치**:
+- `confluence_fetch/transformer.py`: ConfluenceTransformer 내부
+- `server.py`: confluence_fetch의 auto_pipeline 섹션
 
 ## 6. 메타데이터 처리
 

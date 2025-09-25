@@ -5,12 +5,14 @@
 ### 1.1 목적
 수집된 Markdown 문서의 품질을 검사하고 0-100점 점수를 계산하여 Phase 2 진행 여부를 결정한다.
 
-### 1.2 핵심 기능 (업데이트됨)
-- **리팩토링된 모듈 구조**: SpecLint, TemplateValidator, QualityScorer, ImprovementSuggester 분리
-- **문서 내용 직접 검사**: speclint_lint 도구 (단일 인터페이스)
-- **품질 점수 계산**: 0-100점 정확한 계산
-- **개선 사항 제안**: 구체적인 수정 방향 제시
-- **배치 처리 지원**: 여러 파일 일괄 처리
+### 1.2 핵심 기능
+- **리팩토링된 모듈 구조**: SpecLint, DocumentStructureAnalyzer, TemplateValidator, QualityScorer, ImprovementSuggester 분리
+- **문서 내용 직접 검사**: speclint_lint 도구 (HITL 워크플로우 통합)
+- **품질 점수 계산**: 0-100점 정확한 계산 (80점 이상 자동승인, 60-79점 HITL검토, 60점 미만 필수수정)
+- **개선 사항 제안**: result['suggestions'] 필드에 구체적인 수정 방향 제시
+- **배치 처리 지원**: batch_lint 메서드 + confluence_fetch auto_pipeline
+- **로그 기록**: `.specgate/logs/` 파일에 상세 로깅
+- **GitHub Issue 자동 생성**: 점수별 HITL/필수수정 Issue 생성
 
 ## 2. 품질 검사 규칙
 
@@ -58,8 +60,8 @@ QUALITY_SCORING = {
         'change_history_missing': -5
     },
     'thresholds': {
-        'high_quality': 90,      # 자동 승인
-        'medium_quality': 70,    # HITL 검토
+        'high_quality': 80,      # 자동 승인 (기준 완화)
+        'medium_quality': 60,    # HITL 검토 (기준 완화)
         'low_quality': 0         # 필수 수정
     }
 }
@@ -130,23 +132,38 @@ def extract_and_validate_rules(markdown_content):
 @mcp.tool()
 async def speclint_lint(
     content: str,
-    check_type: str = "full"
+    check_type: str = "full",
+    save_report: bool = True,
+    output_dir: str = None,
+    enable_hitl: bool = True,
+    document_title: str = None,
+    project_name: str = None,
+    doc_type: str = None,
+    confluence_url: str = None
 ) -> dict:
     """문서 내용 직접 품질 검사
     
     Args:
         content: 검사할 문서 내용 (필수)
         check_type: 검사 유형 ("full", "basic", "structure")
+        save_report: 품질 리포트 파일 저장 여부 (기본값: True)
+        output_dir: 저장할 디렉토리 (기본값: None, 자동 감지)
+        enable_hitl: HITL 워크플로우 활성화 여부 (기본값: True)
+        document_title: 문서 제목 (HITL용)
+        project_name: 프로젝트명 (HITL용)
+        doc_type: 문서 유형 (HITL용)
+        confluence_url: Confluence URL (HITL용)
     
     Returns:
         dict: {
             "score": int,  # 0-100 점수
-            "violations": List[dict],
-            "suggestions": List[str],
-            "metadata": dict
+            "violations": List[dict],  # 위반사항 목록
+            "suggestions": List[str],  # 개선 제안 목록
+            "metadata": dict,  # 검사 메타데이터
+            "hitl_workflow": dict  # HITL 워크플로우 결과 (enable_hitl=True인 경우)
         }
     """
-    return await speclint_engine.lint(content, check_type)
+    return await speclint_engine.lint(content, check_type, document_title)
 ```
 
 ### 4.2 파일 기반 사용 가이드 (단일 인터페이스 활용)
@@ -175,7 +192,7 @@ result2 = await check_document_quality("markdown_files/converted_20241219_143025
 
 ## 5. 품질 등급별 처리
 
-### 4.1 자동 승인 (90점 이상)
+### 4.1 자동 승인 (80점 이상)
 ```python
 def process_high_quality_document(document, score):
     """고품질 문서 처리"""
@@ -187,7 +204,7 @@ def process_high_quality_document(document, score):
     }
 ```
 
-### 4.2 HITL 검토 (70-89점)
+### 4.2 HITL 검토 (60-79점)
 ```python
 def process_medium_quality_document(document, score, issues):
     """중품질 문서 처리 - HITL 검토 필요"""
@@ -200,7 +217,7 @@ def process_medium_quality_document(document, score, issues):
     }
 ```
 
-### 4.3 필수 수정 (70점 미만)
+### 4.3 필수 수정 (60점 미만)
 ```python
 def process_low_quality_document(document, score, issues):
     """저품질 문서 처리 - 필수 수정"""
@@ -469,7 +486,7 @@ TEST_CASES = [
     {
         'name': '완벽한 문서 테스트',
         'input': TEST_DOCUMENTS['perfect_document'],
-        'expected_score': 95,
+        'expected_score': 85,
         'expected_violations': 0,
         'expected_status': 'auto_approve'
     },
@@ -490,7 +507,7 @@ TEST_CASES = [
     {
         'name': '잘못된 형식 문서 테스트',
         'input': TEST_DOCUMENTS['malformed_document'],
-        'expected_score': 60,
+        'expected_score': 50,
         'expected_violations': 3,
         'expected_status': 'mandatory_fix_required'
     }
@@ -514,7 +531,7 @@ INTEGRATION_TEST_SCENARIOS = [
     {
         'name': 'HITL 검토 플로우',
         'steps': [
-            '70-89점 문서 검사',
+            '60-79점 문서 검사',
             'GitHub Issue 생성',
             'HITL 검토 대기',
             '검토 결과 처리'

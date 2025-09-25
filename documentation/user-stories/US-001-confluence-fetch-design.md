@@ -38,7 +38,7 @@ SPECGATE_PORT=8000
 # Confluence 설정 (Confluence MCP Server에서도 사용)
 CONFLUENCE_DOMAIN=company.atlassian.net
 CONFLUENCE_EMAIL=user@company.com
-CONFLUENCE_API_TOKEN=ATATT3xFfGF...
+CONFLUENCE_API_TOKEN=your-api-token
 ```
 
 ### 2.3 새로운 API 인터페이스 (업데이트됨)

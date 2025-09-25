@@ -47,7 +47,7 @@ Cursor의 `mcp.json`에 다음 설정을 추가하세요:
 |--------|----------|------|------|
 | `CONFLUENCE_DOMAIN` | ✅ 필수 | Confluence 도메인 | `company.atlassian.net` |
 | `CONFLUENCE_EMAIL` | ✅ 필수 | Confluence 계정 이메일 | `user@company.com` |
-| `CONFLUENCE_API_TOKEN` | ✅ 필수 | Confluence API 토큰 | `ATATT3xFfGF... |
+| `CONFLUENCE_API_TOKEN` | ✅ 필수 | Confluence API 토큰 | `your-api-token` |
 | `CLIENT_WORK_DIR` | 🔧 권장 | 파일 저장 위치 | `/Users/user/my-project` |
 
 #### 파일 저장 위치 설정

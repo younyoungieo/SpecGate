@@ -88,7 +88,11 @@
 
 ### 6.1 시스템 구조도
 
-![SpecGate 통합 시스템 아키텍처](SpecGate_integrated_architecture.svg)
+![SpecGate 통합 시스템 아키텍처](../assets/images/SpecGate_architecture_1.png)
+*SpecGate MCP Server와 개발 도구들 간의 상호작용 다이어그램*
+
+![SpecGate 통합 시스템 아키텍처](../assets/images/SpecGate_architecture_2.svg)
+*SpecGate MCP Server의 전체 워크플로우 및 데이터 흐름*
 
 
 ### 6.2 MCP Server 구성 (11개 도구)
