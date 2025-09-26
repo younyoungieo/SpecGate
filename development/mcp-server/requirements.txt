@@ -12,6 +12,7 @@ aiofiles==24.1.0
 
 # HTML to Markdown conversion
 beautifulsoup4==4.13.5
+lxml==5.3.0
 markdownify==1.2.0
 
 # Testing

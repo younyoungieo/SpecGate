@@ -39,25 +39,46 @@ STRUCTURE_CHECKS = {
 }
 
 # 품질 점수 산정 규칙
+# 
+# 점수 생성 기준:
+# - 기본 점수: 100점에서 시작
+# - 각 위반사항별로 차감점수 적용
+# - 최종 점수 = 100 - 총 차감점수 (최소 0점)
+#
+# 임계값 기준:
+# - 80점 이상: 자동 승인 (표준 완전 준수)
+# - 60-79점: HITL 검토 필요 (부분적 개선 필요)
+# - 60점 미만: 필수 수정 (표준 미준수)
+#
+# 기준 완화 이유:
+# - 초기 도입 단계에서 너무 엄격한 기준은 도구 사용을 저해
+# - 점진적 품질 향상을 통한 조직 문화 개선 목표
 QUALITY_SCORING = {
     'base_score': 100,
     'deductions': {
-        'title_format_mismatch': -20,
-        'design_rules_missing': -30,
-        'rule_id_format_mismatch': -3,  # per rule
-        'rule_type_mismatch': -2,       # per rule
-        'scope_missing': -2,            # per rule
-        'reason_missing': -2,           # per rule
-        'reference_missing': -1,        # per rule
-        'technical_spec_missing': -25,
-        'rule_spec_relation_missing': -10,
-        'code_example_missing': -5,
-        'change_history_missing': -5,
-        'parsing_error': -100,          # 치명적 에러
-        'no_rules_found': -15,
-        'rule_content_too_short': -1,   # per rule
-        'design_rules_keywords_missing': -10,
-        'design_rules_insufficient': -15
+        # 구조적 문제 (큰 차감)
+        'title_format_mismatch': -20,    # 제목 형식 불일치
+        'design_rules_missing': -30,     # 설계 규칙 섹션 누락
+        'technical_spec_missing': -25,   # 기술 스펙 섹션 누락
+        'parsing_error': -100,           # 치명적 파싱 에러
+        
+        # 규칙 관련 문제 (중간 차감)
+        'rule_spec_relation_missing': -10,  # 규칙-스펙 연관성 누락
+        'design_rules_keywords_missing': -10,  # 설계 규칙 키워드 누락
+        'design_rules_insufficient': -15,     # 설계 규칙 부족
+        'no_rules_found': -15,               # 규칙 전혀 없음
+        
+        # 개별 규칙 문제 (규칙당 차감)
+        'rule_id_format_mismatch': -3,   # 규칙 ID 형식 불일치 (규칙당)
+        'rule_type_mismatch': -2,        # 규칙 타입 불일치 (규칙당)
+        'scope_missing': -2,             # 적용 범위 누락 (규칙당)
+        'reason_missing': -2,            # 근거 누락 (규칙당)
+        'rule_content_too_short': -1,    # 규칙 내용 너무 짧음 (규칙당)
+        
+        # 기타 문제 (소액 차감)
+        'reference_missing': -1,         # 참조 정보 누락 (규칙당)
+        'code_example_missing': -5,      # 코드 예시 누락
+        'change_history_missing': -5     # 변경 이력 누락
     },
     'thresholds': {
         'high_quality': 80,      # 자동 승인 (기준 완화)
